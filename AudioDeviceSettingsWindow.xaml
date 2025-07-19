@@ -50,6 +50,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="40"/>
             <RowDefinition Height="*"/>
+            <RowDefinition Height="60"/>
         </Grid.RowDefinitions>
         
         <!-- Заголовок окна -->
@@ -78,7 +79,7 @@
         </Border>
         
         <!-- Основное содержимое -->
-        <Grid Grid.Row="1" Margin="16">
+        <Grid Grid.Row="1" Margin="16,16,16,76">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="300"/>
@@ -215,8 +216,7 @@
         </Grid>
         
         <!-- Кнопки управления окном -->
-        <Border Grid.Row="1" Background="#FF1E1E1E" BorderBrush="#FF3F3F46" BorderThickness="0,1,0,0" 
-                VerticalAlignment="Bottom" Height="60" Panel.ZIndex="1">
+        <Border Grid.Row="2" Background="#FF1E1E1E" BorderBrush="#FF3F3F46" BorderThickness="0,1,0,0">
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="16,0">
                 <Button Content="💾 Сохранить" Click="SaveButton_Click" 
                         Style="{StaticResource ModernButton}" Width="100" Height="36" Background="{StaticResource SuccessBrush}"/>

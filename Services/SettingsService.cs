@@ -71,5 +71,9 @@ namespace SilentCaster.Services
         public double WindowHeight { get; set; } = 600;
         public bool WindowMaximized { get; set; } = false;
         public VoiceSettings VoiceSettings { get; set; } = new VoiceSettings();
+        
+        // Новые настройки для озвучки чата
+        public bool EnableChatVoice { get; set; } = true;
+        public string ChatTriggerSymbol { get; set; } = "!!!";
     }
 } 

@@ -276,6 +276,36 @@
                                           Unchecked="UseMultipleVoicesCheckBox_Unchecked"
                                           Foreground="{StaticResource ForegroundBrush}"/>
                                 
+                                <!-- Новые настройки озвучки чата -->
+                                <Border Background="#FF2D2D30" CornerRadius="6" Padding="12" Margin="0,0,0,12">
+                                    <StackPanel>
+                                        <TextBlock Text="🎤 Настройки озвучки чата" FontWeight="Bold" FontSize="14" Margin="0,0,0,8"
+                                                   Foreground="{StaticResource ForegroundBrush}"/>
+                                        
+                                        <CheckBox x:Name="EnableChatVoiceCheckBox" Content="Озвучивать сообщения из чата" 
+                                                  Margin="0,0,0,8" Checked="EnableChatVoiceCheckBox_Checked" 
+                                                  Unchecked="EnableChatVoiceCheckBox_Unchecked"
+                                                  Foreground="{StaticResource ForegroundBrush}"/>
+                                        
+                                        <Grid Margin="0,8,0,0">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                            </Grid.RowDefinitions>
+                                            
+                                            <TextBlock Grid.Column="0" Text="Символ триггера:" VerticalAlignment="Center" 
+                                                       Margin="0,0,8,0" Foreground="{StaticResource ForegroundBrush}"/>
+                                            <TextBox Grid.Column="1" x:Name="ChatTriggerSymbolTextBox" Text="!!!" 
+                                                     Width="100" HorizontalAlignment="Left"
+                                                     TextChanged="ChatTriggerSymbolTextBox_TextChanged"
+                                                     ToolTip="Сообщения, содержащие этот символ, будут озвучены"/>
+                                        </Grid>
+                                    </StackPanel>
+                                </Border>
+                                
                                 <TextBlock Text="Активные профили:" Margin="0,8,0,4" 
                                            Foreground="{StaticResource ForegroundBrush}"/>
                                 <ListBox x:Name="ActiveProfilesListBox" Height="80" 

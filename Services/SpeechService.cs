@@ -13,13 +13,15 @@ namespace SilentCaster.Services
     {
         private readonly SpeechSynthesizer _synthesizer;
         private readonly ExternalTTSService _externalTTS;
+        private readonly AudioDeviceService? _audioDeviceService;
         private VoiceSettings _settings;
         private readonly Random _random;
 
-        public SpeechService()
+        public SpeechService(AudioDeviceService? audioDeviceService = null)
         {
             _synthesizer = new SpeechSynthesizer();
             _externalTTS = new ExternalTTSService();
+            _audioDeviceService = audioDeviceService;
             _settings = new VoiceSettings();
             _random = new Random();
             LoadDefaultVoice();
@@ -211,6 +213,9 @@ namespace SilentCaster.Services
 
             _synthesizer.Rate = (int)_settings.Rate;
             _synthesizer.Volume = (int)_settings.Volume;
+            
+            // Применяем выбранное аудио устройство
+            ApplyAudioDevice();
         }
 
         private async Task ApplyVoiceProfileAsync(VoiceProfile? profile, string text)
@@ -253,6 +258,29 @@ namespace SilentCaster.Services
                 // Возвращаемся к основным настройкам
                 ApplySettings();
                 _synthesizer.SpeakAsync(text);
+            }
+        }
+
+        private void ApplyAudioDevice()
+        {
+            if (_audioDeviceService == null) return;
+            
+            try
+            {
+                var selectedDevice = _audioDeviceService.GetSelectedDevice();
+                if (selectedDevice != null && selectedDevice.DeviceId != "default")
+                {
+                    // К сожалению, System.Speech.Synthesis.SpeechSynthesizer не поддерживает
+                    // прямой выбор аудио устройства. Мы можем только логировать информацию
+                    System.Diagnostics.Debug.WriteLine($"Выбранное аудио устройство: {selectedDevice.Name} (ID: {selectedDevice.DeviceId})");
+                    
+                    // Для полной поддержки выбора аудио устройства нужно использовать
+                    // альтернативные библиотеки, такие как NAudio с SAPI или другие TTS решения
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Ошибка применения аудио устройства: {ex.Message}");
             }
         }
 

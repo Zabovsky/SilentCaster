@@ -14,7 +14,7 @@ namespace SilentCaster
     public partial class MainWindow : Window
     {
         private readonly TwitchService _twitchService;
-        private readonly SpeechService _speechService;
+        private readonly AdvancedSpeechService _speechService;
         private readonly ResponseService _responseService;
         private readonly SettingsService _settingsService;
         private readonly AudioDeviceService _audioDeviceService;
@@ -28,10 +28,10 @@ namespace SilentCaster
             InitializeComponent();
             
             _twitchService = new TwitchService();
-            _speechService = new SpeechService();
+            _audioDeviceService = new AudioDeviceService();
+            _speechService = new AdvancedSpeechService(_audioDeviceService);
             _responseService = new ResponseService();
             _settingsService = new SettingsService();
-            _audioDeviceService = new AudioDeviceService();
             
             _chatMessages = new ObservableCollection<ChatMessage>();
             _responses = new ObservableCollection<QuickResponse>();
@@ -68,6 +68,16 @@ namespace SilentCaster
             if (AlwaysOnTopCheckBox != null)
             {
                 AlwaysOnTopCheckBox.IsChecked = _appSettings.AlwaysOnTop;
+            }
+            
+            // Инициализируем настройки озвучки чата
+            if (EnableChatVoiceCheckBox != null)
+            {
+                EnableChatVoiceCheckBox.IsChecked = _appSettings.EnableChatVoice;
+            }
+            if (ChatTriggerSymbolTextBox != null)
+            {
+                ChatTriggerSymbolTextBox.Text = _appSettings.ChatTriggerSymbol;
             }
             
             // Обновляем настройки голоса после полной инициализации
@@ -115,6 +125,16 @@ namespace SilentCaster
                 // Применяем настройки голоса по умолчанию
                 _voiceSettings.UseMultipleVoices = _appSettings.UseMultipleVoices;
             }
+            
+            // Загружаем настройки озвучки чата
+            if (EnableChatVoiceCheckBox != null)
+            {
+                EnableChatVoiceCheckBox.IsChecked = _appSettings.EnableChatVoice;
+            }
+            if (ChatTriggerSymbolTextBox != null)
+            {
+                ChatTriggerSymbolTextBox.Text = _appSettings.ChatTriggerSymbol;
+            }
         }
 
         private void UpdateVoiceSettings()
@@ -137,8 +157,36 @@ namespace SilentCaster
         {
             if (_twitchService.IsConnected)
             {
-                _twitchService.Disconnect();
-                ConnectButton.Content = "🔗 Подключиться";
+                try
+                {
+                    ConnectButton.IsEnabled = false;
+                    ConnectButton.Content = "⏳ Отключение...";
+                    
+                    // Отключаемся от чата асинхронно
+                    await _twitchService.DisconnectAsync();
+                    
+                    // Очищаем список сообщений
+                    Dispatcher.Invoke(() =>
+                    {
+                        _chatMessages.Clear();
+                        if (ChatCounterTextBlock != null)
+                        {
+                            ChatCounterTextBlock.Text = " (0)";
+                        }
+                    });
+                    
+                    ConnectButton.Content = "🔗 Подключиться";
+                    StatusTextBlock.Text = "Отключено от чата";
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Ошибка отключения: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                    ConnectButton.Content = "❌ Отключиться";
+                }
+                finally
+                {
+                    ConnectButton.IsEnabled = true;
+                }
                 return;
             }
 
@@ -202,8 +250,17 @@ namespace SilentCaster
                 ChatMessagesListBox.ScrollIntoView(message);
             });
 
-            // Озвучиваем сообщение чата
-            await _speechService.SpeakAsync(message.Message, message.Username, "chat");
+            // Проверяем настройки озвучки чата
+            if (_appSettings?.EnableChatVoice == true)
+            {
+                // Проверяем, содержит ли сообщение символ триггера
+                if (string.IsNullOrEmpty(_appSettings.ChatTriggerSymbol) || 
+                    message.Message.Contains(_appSettings.ChatTriggerSymbol))
+                {
+                    // Озвучиваем сообщение чата
+                    await _speechService.SpeakAsync(message.Message, message.Username, "chat");
+                }
+            }
         }
 
         private void OnConnectionStatusChanged(object? sender, string status)
@@ -294,7 +351,9 @@ namespace SilentCaster
 
         private void OpenSettingsButton_Click(object sender, RoutedEventArgs e)
         {
-            var settingsWindow = new SettingsWindow(_responseService, _speechService);
+            // Создаем временный SpeechService для совместимости
+            var tempSpeechService = new SpeechService(_audioDeviceService);
+            var settingsWindow = new SettingsWindow(_responseService, tempSpeechService);
             settingsWindow.Owner = this;
             settingsWindow.ShowDialog();
             
@@ -331,9 +390,38 @@ namespace SilentCaster
             SaveAppSettings();
         }
 
+        private void EnableChatVoiceCheckBox_Checked(object sender, RoutedEventArgs e)
+        {
+            if (_appSettings != null)
+            {
+                _appSettings.EnableChatVoice = true;
+                SaveAppSettings();
+            }
+        }
+
+        private void EnableChatVoiceCheckBox_Unchecked(object sender, RoutedEventArgs e)
+        {
+            if (_appSettings != null)
+            {
+                _appSettings.EnableChatVoice = false;
+                SaveAppSettings();
+            }
+        }
+
+        private void ChatTriggerSymbolTextBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (sender is TextBox textBox && _appSettings != null)
+            {
+                _appSettings.ChatTriggerSymbol = textBox.Text;
+                SaveAppSettings();
+            }
+        }
+
         private void OpenVoiceProfilesButton_Click(object sender, RoutedEventArgs e)
         {
-            var voiceProfilesWindow = new VoiceProfilesWindow(_speechService, _voiceSettings);
+            // Создаем временный SpeechService для совместимости
+            var tempSpeechService = new SpeechService(_audioDeviceService);
+            var voiceProfilesWindow = new VoiceProfilesWindow(tempSpeechService, _voiceSettings);
             voiceProfilesWindow.Owner = this;
             voiceProfilesWindow.ShowDialog();
             
@@ -360,12 +448,25 @@ namespace SilentCaster
 
         private void OpenAudioDeviceSettingsButton_Click(object sender, RoutedEventArgs e)
         {
-            var audioDeviceSettingsWindow = new AudioDeviceSettingsWindow(_audioDeviceService);
-            audioDeviceSettingsWindow.Owner = this;
-            audioDeviceSettingsWindow.ShowDialog();
-            
-            // Обновляем настройки после закрытия окна
-            UpdateVoiceSettings();
+            try
+            {
+                if (_audioDeviceService == null)
+                {
+                    MessageBox.Show("Служба аудио устройств не инициализирована", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+                
+                var audioDeviceSettingsWindow = new AudioDeviceSettingsWindow(_audioDeviceService);
+                audioDeviceSettingsWindow.Owner = this;
+                audioDeviceSettingsWindow.ShowDialog();
+                
+                // Обновляем настройки после закрытия окна
+                UpdateVoiceSettings();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка открытия настроек аудио устройств: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         private void RemoveResponseButton_Click(object sender, RoutedEventArgs e)
@@ -383,6 +484,7 @@ namespace SilentCaster
             // Сохраняем настройки перед закрытием
             SaveAppSettings();
             
+            // Отключаемся от чата синхронно при закрытии окна
             _twitchService.Disconnect();
             _speechService.Dispose();
             base.OnClosed(e);
@@ -390,6 +492,8 @@ namespace SilentCaster
 
         private void SaveAppSettings()
         {
+            if (_appSettings == null) return;
+            
             // Сохраняем настройки окна
             _appSettings.WindowLeft = this.Left;
             _appSettings.WindowTop = this.Top;
@@ -398,8 +502,10 @@ namespace SilentCaster
             _appSettings.WindowMaximized = this.WindowState == WindowState.Maximized;
             
             // Сохраняем настройки подключения
-            _appSettings.LastUsername = UsernameTextBox.Text;
-            _appSettings.LastChannel = ChannelTextBox.Text;
+            if (UsernameTextBox != null)
+                _appSettings.LastUsername = UsernameTextBox.Text;
+            if (ChannelTextBox != null)
+                _appSettings.LastChannel = ChannelTextBox.Text;
             
             // Сохраняем голосовые настройки
             _appSettings.VoiceSettings = _voiceSettings;

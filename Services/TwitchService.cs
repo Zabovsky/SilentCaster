@@ -90,9 +90,55 @@ namespace SilentCaster.Services
             };
         }
 
+        public async Task DisconnectAsync()
+        {
+            try
+            {
+                if (_client != null && _client.IsConnected)
+                {
+                    ConnectionStatusChanged?.Invoke(this, "Отключение...");
+                    
+                    // Отключаемся асинхронно
+                    await Task.Run(() =>
+                    {
+                        try
+                        {
+                            _client.Disconnect();
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"Ошибка отключения клиента: {ex.Message}");
+                        }
+                    });
+                    
+                    // Очищаем ссылку на клиент
+                    _client = null;
+                    
+                    ConnectionStatusChanged?.Invoke(this, "Отключено");
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Ошибка в DisconnectAsync: {ex.Message}");
+                ConnectionStatusChanged?.Invoke(this, "Ошибка отключения");
+            }
+        }
+
         public void Disconnect()
         {
-            _client?.Disconnect();
+            // Синхронная версия для обратной совместимости
+            try
+            {
+                if (_client != null && _client.IsConnected)
+                {
+                    _client.Disconnect();
+                }
+                _client = null;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Ошибка в Disconnect: {ex.Message}");
+            }
         }
 
         public bool IsConnected => _client?.IsConnected ?? false;
