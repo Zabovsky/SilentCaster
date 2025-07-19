@@ -15,7 +15,9 @@ namespace SilentCaster
     {
         private readonly ResponseService _responseService;
         private readonly SpeechService _speechService;
-        private readonly ObservableCollection<QuickResponse> _responses;
+        private readonly ForbiddenWordsService _forbiddenWordsService;
+        private readonly ObservableCollection<QuickResponse> _quickResponses = new();
+        private readonly ObservableCollection<QuickResponse> _personalResponses = new();
         private QuickResponse? _currentResponse;
 
         public SettingsWindow(ResponseService responseService, SpeechService speechService)
@@ -24,54 +26,18 @@ namespace SilentCaster
             
             _responseService = responseService;
             _speechService = speechService;
-            _responses = new ObservableCollection<QuickResponse>();
-            
-            ResponsesListBox.ItemsSource = _responses;
-            LoadResponses();
-            UpdateStatistics();
-        }
-
-        private void LoadResponses()
-        {
-            _responses.Clear();
-            var responses = _responseService.GetAllResponses();
-            foreach (var response in responses)
-            {
-                // Инициализируем новые поля для старых ответов
-                if (string.IsNullOrEmpty(response.Response) && response.Responses != null && response.Responses.Count > 0)
-                {
-                    response.Response = string.Join(Environment.NewLine, response.Responses);
-                }
-                
-                // Устанавливаем значения по умолчанию для новых полей
-                if (string.IsNullOrEmpty(response.Category))
-                    response.Category = "Общие";
-                if (response.Priority == 0)
-                    response.Priority = 1;
-                if (!response.IsEnabled)
-                    response.IsEnabled = true;
-                if (!response.UseForChatMessages)
-                    response.UseForChatMessages = true;
-                if (!response.UseForManualMessages)
-                    response.UseForManualMessages = true;
-                if (!response.UseForQuickResponses)
-                    response.UseForQuickResponses = true;
-                if (response.UsageChance == 0)
-                    response.UsageChance = 100;
-                if (response.Delay == 0)
-                    response.Delay = 0;
-                
-                _responses.Add(response);
-            }
-            
-            // Обновляем статистику после загрузки
+            _forbiddenWordsService = new ForbiddenWordsService();
+            _quickResponses = new ObservableCollection<QuickResponse>(_responseService.GetQuickResponses());
+            _personalResponses = new ObservableCollection<QuickResponse>(_responseService.GetPersonalResponses());
+            QuickResponsesListBox.ItemsSource = _quickResponses;
+            ResponsesListBox.ItemsSource = _personalResponses;
             UpdateStatistics();
         }
 
         private void UpdateStatistics()
         {
-            TotalResponsesTextBlock.Text = _responses.Count.ToString();
-            var activeCount = _responses.Count(r => r.IsEnabled);
+            TotalResponsesTextBlock.Text = (_quickResponses.Count + _personalResponses.Count).ToString();
+            var activeCount = _quickResponses.Count(r => r.IsEnabled) + _personalResponses.Count(r => r.IsEnabled);
             ActiveResponsesTextBlock.Text = activeCount.ToString();
         }
 
@@ -80,11 +46,18 @@ namespace SilentCaster
             if (ResponsesListBox.SelectedItem is QuickResponse selectedResponse)
             {
                 LoadResponse(selectedResponse);
-                ShowResponseSettings();
+                // Переключаемся на первую вкладку (настройки ответа)
+                ResponseSettingsTabControl.SelectedIndex = 0;
             }
-            else
+        }
+
+        private void QuickResponsesListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (QuickResponsesListBox.SelectedItem is QuickResponse selectedQuick)
             {
-                HideResponseSettings();
+                LoadResponse(selectedQuick);
+                // Переключаемся на первую вкладку (настройки ответа)
+                ResponseSettingsTabControl.SelectedIndex = 0;
             }
         }
 
@@ -159,13 +132,13 @@ namespace SilentCaster
 
         private void ShowResponseSettings()
         {
-            ResponseSettingsBorder.Visibility = Visibility.Visible;
+            ResponseSettingsTabControl.Visibility = Visibility.Visible;
             NoResponseBorder.Visibility = Visibility.Collapsed;
         }
 
         private void HideResponseSettings()
         {
-            ResponseSettingsBorder.Visibility = Visibility.Collapsed;
+            ResponseSettingsTabControl.Visibility = Visibility.Collapsed;
             NoResponseBorder.Visibility = Visibility.Visible;
         }
 
@@ -183,10 +156,10 @@ namespace SilentCaster
                 UseForManualMessages = true,
                 UseForQuickResponses = true,
                 UsageChance = 100,
-                Delay = 0
+                Delay = 0,
+                IsQuickResponse = false // по умолчанию персональный
             };
-
-            _responses.Add(newResponse);
+            _personalResponses.Add(newResponse);
             ResponsesListBox.SelectedItem = newResponse;
             UpdateStatistics();
         }
@@ -196,16 +169,54 @@ namespace SilentCaster
             if (ResponsesListBox.SelectedItem is QuickResponse selectedResponse)
             {
                 var result = MessageBox.Show(
-                    $"Удалить ответ '{selectedResponse.Trigger}'?", 
-                    "Подтверждение", 
-                    MessageBoxButton.YesNo, 
+                    $"Удалить ответ '{selectedResponse.Trigger}'?",
+                    "Подтверждение",
+                    MessageBoxButton.YesNo,
                     MessageBoxImage.Question
                 );
-                
                 if (result == MessageBoxResult.Yes)
                 {
-                    _responses.Remove(selectedResponse);
-                    HideResponseSettings();
+                    _personalResponses.Remove(selectedResponse);
+                    UpdateStatistics();
+                }
+            }
+        }
+
+        private void AddQuickResponseButton_Click(object sender, RoutedEventArgs e)
+        {
+            var newQuick = new QuickResponse
+            {
+                Trigger = "новый_триггер",
+                Response = "Быстрый ответ",
+                Responses = new List<string> { "Быстрый ответ" },
+                Category = "Быстрый",
+                Priority = 1,
+                IsEnabled = true,
+                UseForChatMessages = false,
+                UseForManualMessages = false,
+                UseForQuickResponses = true,
+                UsageChance = 100,
+                Delay = 0,
+                IsQuickResponse = true
+            };
+            _quickResponses.Add(newQuick);
+            QuickResponsesListBox.SelectedItem = newQuick;
+            UpdateStatistics();
+        }
+
+        private void RemoveQuickResponseButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (QuickResponsesListBox.SelectedItem is QuickResponse selectedQuick)
+            {
+                var result = MessageBox.Show(
+                    $"Удалить быстрый ответ '{selectedQuick.Trigger}'?",
+                    "Подтверждение",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Question
+                );
+                if (result == MessageBoxResult.Yes)
+                {
+                    _quickResponses.Remove(selectedQuick);
                     UpdateStatistics();
                 }
             }
@@ -260,6 +271,7 @@ namespace SilentCaster
             
             // Обновляем отображение в списке
             ResponsesListBox.Items.Refresh();
+            QuickResponsesListBox.Items.Refresh();
             UpdateStatistics();
             
             MessageBox.Show("Ответ сохранен!", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
@@ -275,11 +287,53 @@ namespace SilentCaster
             
             try
             {
-                await _speechService.SpeakAsync(_currentResponse.Response, "Тест");
+                // Проверяем запрещенные слова
+                if (!_forbiddenWordsService.ContainsForbiddenWords(_currentResponse.Response))
+                {
+                    await _speechService.SpeakAsync(_currentResponse.Response, "Тест");
+                }
+                else
+                {
+                    MessageBox.Show("Ответ содержит запрещенные слова и не может быть озвучен!", 
+                        "Запрещенные слова", MessageBoxButton.OK, MessageBoxImage.Warning);
+                }
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Ошибка тестирования: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private async void TestQuickResponse_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button button && button.Tag is QuickResponse response)
+            {
+                try
+                {
+                    var responseText = response.Response;
+                    if (string.IsNullOrEmpty(responseText) && response.Responses != null && response.Responses.Count > 0)
+                    {
+                        responseText = response.Responses.First();
+                    }
+                    
+                    if (!string.IsNullOrEmpty(responseText))
+                    {
+                        // Проверяем запрещенные слова
+                        if (!_forbiddenWordsService.ContainsForbiddenWords(responseText))
+                        {
+                            await _speechService.SpeakAsync(responseText, null, "test");
+                        }
+                        else
+                        {
+                            MessageBox.Show("Быстрый ответ содержит запрещенные слова и не может быть озвучен!", 
+                                "Запрещенные слова", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Ошибка тестирования: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
             }
         }
 
@@ -311,15 +365,11 @@ namespace SilentCaster
         {
             try
             {
-                // Сохраняем все ответы
-                _responseService.ClearResponses();
-                foreach (var response in _responses)
-                {
-                    _responseService.AddResponse(response);
-                }
+                // Сохраняем все ответы (быстрые и персональные) в один файл
+                var allResponses = _quickResponses.Concat(_personalResponses).ToList();
+                _responseService.UpdateAllResponses(allResponses);
                 
                 MessageBox.Show("Все ответы сохранены!", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
-                
                 DialogResult = true;
                 Close();
             }

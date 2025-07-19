@@ -75,5 +75,11 @@ namespace SilentCaster.Services
         // Новые настройки для озвучки чата
         public bool EnableChatVoice { get; set; } = true;
         public string ChatTriggerSymbol { get; set; } = "!!!";
+        public bool VoiceOnlyForSubscribers { get; set; } = false;
+        public bool VoiceOnlyForVips { get; set; } = false;
+        public bool VoiceOnlyForModerators { get; set; } = false;
+        
+        // Настройки чата
+        public int MaxChatMessages { get; set; } = 100;
     }
 } 

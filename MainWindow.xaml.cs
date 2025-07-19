@@ -18,6 +18,7 @@ namespace SilentCaster
         private readonly ResponseService _responseService;
         private readonly SettingsService _settingsService;
         private readonly AudioDeviceService _audioDeviceService;
+        private readonly ForbiddenWordsService _forbiddenWordsService;
         private readonly ObservableCollection<ChatMessage> _chatMessages;
         private readonly ObservableCollection<QuickResponse> _responses;
         private VoiceSettings _voiceSettings;
@@ -32,6 +33,7 @@ namespace SilentCaster
             _speechService = new AdvancedSpeechService(_audioDeviceService);
             _responseService = new ResponseService();
             _settingsService = new SettingsService();
+            _forbiddenWordsService = new ForbiddenWordsService();
             
             _chatMessages = new ObservableCollection<ChatMessage>();
             _responses = new ObservableCollection<QuickResponse>();
@@ -107,6 +109,10 @@ namespace SilentCaster
             {
                 ChatTriggerSymbolTextBox.Text = _appSettings.ChatTriggerSymbol;
             }
+            if (MaxChatMessagesTextBox != null)
+            {
+                MaxChatMessagesTextBox.Text = _appSettings.MaxChatMessages.ToString();
+            }
             
             // Обновляем настройки голоса после полной инициализации
             Dispatcher.BeginInvoke(new Action(() =>
@@ -118,7 +124,7 @@ namespace SilentCaster
         private void LoadResponses()
         {
             _responses.Clear();
-            var responses = _responseService.GetAllResponses();
+            var responses = _responseService.GetQuickResponses();
             foreach (var response in responses)
             {
                 _responses.Add(response);
@@ -165,9 +171,31 @@ namespace SilentCaster
             {
                 EnableChatVoiceCheckBox.IsChecked = _appSettings.EnableChatVoice;
             }
+            if (VoiceOnlyForSubscribersCheckBox != null)
+            {
+                VoiceOnlyForSubscribersCheckBox.IsChecked = _appSettings.VoiceOnlyForSubscribers;
+            }
+            if (VoiceOnlyForVipsCheckBox != null)
+            {
+                VoiceOnlyForVipsCheckBox.IsChecked = _appSettings.VoiceOnlyForVips;
+            }
+            if (VoiceOnlyForModeratorsCheckBox != null)
+            {
+                VoiceOnlyForModeratorsCheckBox.IsChecked = _appSettings.VoiceOnlyForModerators;
+            }
             if (ChatTriggerSymbolTextBox != null)
             {
                 ChatTriggerSymbolTextBox.Text = _appSettings.ChatTriggerSymbol;
+            }
+            if (MaxChatMessagesTextBox != null)
+            {
+                MaxChatMessagesTextBox.Text = _appSettings.MaxChatMessages.ToString();
+            }
+            if (VolumeSlider != null && VolumeTextBlock != null)
+            {
+                var volume = _voiceSettings.VoiceProfiles.FirstOrDefault()?.Volume ?? 100;
+                VolumeSlider.Value = volume;
+                VolumeTextBlock.Text = $"{volume}%";
             }
         }
 
@@ -274,10 +302,15 @@ namespace SilentCaster
             {
                 _chatMessages.Add(message);
                 
-                // Сохраняем максимум 100 сообщений
-                while (_chatMessages.Count > 100)
+                // Оптимизированное удаление старых сообщений - удаляем сразу все лишние
+                var maxMessages = _appSettings?.MaxChatMessages ?? 100;
+                if (_chatMessages.Count > maxMessages)
                 {
-                    _chatMessages.RemoveAt(0);
+                    var itemsToRemove = _chatMessages.Count - maxMessages;
+                    for (int i = 0; i < itemsToRemove; i++)
+                    {
+                        _chatMessages.RemoveAt(0);
+                    }
                 }
                 
                 // Обновляем счетчик сообщений
@@ -293,12 +326,46 @@ namespace SilentCaster
             // Проверяем настройки озвучки чата
             if (_appSettings?.EnableChatVoice == true)
             {
-                // Проверяем, содержит ли сообщение символ триггера
-                if (string.IsNullOrEmpty(_appSettings.ChatTriggerSymbol) || 
-                    message.Message.Contains(_appSettings.ChatTriggerSymbol))
+                // Проверяем настройки ограничений по ролям
+                bool shouldVoice = true;
+                
+                // Если включены какие-либо ограничения, проверяем соответствие
+                if (_appSettings.VoiceOnlyForSubscribers || _appSettings.VoiceOnlyForVips || _appSettings.VoiceOnlyForModerators)
                 {
-                    // Озвучиваем сообщение чата
-                    await _speechService.SpeakAsync(message.Message, message.Username, "chat");
+                    shouldVoice = false; // По умолчанию не озвучиваем
+                    
+                    // Проверяем каждую включенную группу
+                    if (_appSettings.VoiceOnlyForSubscribers && message.IsSubscriber)
+                    {
+                        shouldVoice = true;
+                    }
+                    
+                    if (_appSettings.VoiceOnlyForVips && message.IsVip)
+                    {
+                        shouldVoice = true;
+                    }
+                    
+                    if (_appSettings.VoiceOnlyForModerators && message.IsModerator)
+                    {
+                        shouldVoice = true;
+                    }
+                }
+                
+                // Проверяем, содержит ли сообщение символ триггера
+                if (shouldVoice && (string.IsNullOrEmpty(_appSettings.ChatTriggerSymbol) || 
+                    message.Message.Contains(_appSettings.ChatTriggerSymbol)))
+                {
+                    // Проверяем запрещенные слова
+                    if (!_forbiddenWordsService.ContainsForbiddenWords(message.Message))
+                    {
+                        // Озвучиваем сообщение чата
+                        await _speechService.SpeakAsync(message.Message, message.Username, "chat");
+                    }
+                    else
+                    {
+                        // Логируем блокировку сообщения
+                        System.Diagnostics.Debug.WriteLine($"Сообщение заблокировано из-за запрещенных слов: {message.Message}");
+                    }
                 }
             }
         }
@@ -321,7 +388,7 @@ namespace SilentCaster
 
         private void ShowResponseContextMenu(ChatMessage message)
         {
-            var responses = _responseService.GetResponsesForMessage(message.Message);
+            var responses = _responseService.GetPersonalResponsesForMessage(message.Message);
             
             var contextMenu = new ContextMenu();
             
@@ -347,7 +414,16 @@ namespace SilentCaster
         {
             if (sender is MenuItem menuItem && menuItem.Tag is ResponseData data)
             {
-                await _speechService.SpeakAsync(data.Response, data.Username, "quick");
+                // Проверяем запрещенные слова
+                if (!_forbiddenWordsService.ContainsForbiddenWords(data.Response))
+                {
+                    await _speechService.SpeakAsync(data.Response, data.Username, "quick");
+                }
+                else
+                {
+                    MessageBox.Show("Ответ содержит запрещенные слова и не может быть озвучен!", 
+                        "Запрещенные слова", MessageBoxButton.OK, MessageBoxImage.Warning);
+                }
             }
         }
 
@@ -370,7 +446,17 @@ namespace SilentCaster
                 if (selectedResponse.Responses.Any())
                 {
                     var response = selectedResponse.Responses.First();
-                    await _speechService.SpeakAsync(response, "Стример", "quick");
+                    
+                    // Проверяем запрещенные слова
+                    if (!_forbiddenWordsService.ContainsForbiddenWords(response))
+                    {
+                        await _speechService.SpeakAsync(response, "Стример", "quick");
+                    }
+                    else
+                    {
+                        MessageBox.Show("Быстрый ответ содержит запрещенные слова и не может быть озвучен!", 
+                            "Запрещенные слова", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    }
                 }
             }
         }
@@ -380,13 +466,33 @@ namespace SilentCaster
             var message = MessageTextBox.Text.Trim();
             if (!string.IsNullOrEmpty(message))
             {
-                await _speechService.SpeakAsync(message, null, "manual");
+                // Проверяем запрещенные слова
+                if (!_forbiddenWordsService.ContainsForbiddenWords(message))
+                {
+                    await _speechService.SpeakAsync(message, null, "manual");
+                }
+                else
+                {
+                    MessageBox.Show("Сообщение содержит запрещенные слова и не может быть озвучено!", 
+                        "Запрещенные слова", MessageBoxButton.OK, MessageBoxImage.Warning);
+                }
             }
         }
 
         private void ClearMessageButton_Click(object sender, RoutedEventArgs e)
         {
             MessageTextBox.Text = string.Empty;
+        }
+
+        private void ClearChatButton_Click(object sender, RoutedEventArgs e)
+        {
+            _chatMessages.Clear();
+            
+            // Обновляем счетчик сообщений
+            if (ChatCounterTextBlock != null)
+            {
+                ChatCounterTextBlock.Text = " (0)";
+            }
         }
 
         private void OpenSettingsButton_Click(object sender, RoutedEventArgs e)
@@ -447,12 +553,97 @@ namespace SilentCaster
             }
         }
 
+        private void VoiceOnlyForSubscribersCheckBox_Checked(object sender, RoutedEventArgs e)
+        {
+            if (_appSettings != null)
+            {
+                _appSettings.VoiceOnlyForSubscribers = true;
+                SaveAppSettings();
+            }
+        }
+
+        private void VoiceOnlyForSubscribersCheckBox_Unchecked(object sender, RoutedEventArgs e)
+        {
+            if (_appSettings != null)
+            {
+                _appSettings.VoiceOnlyForSubscribers = false;
+                SaveAppSettings();
+            }
+        }
+
+        private void VoiceOnlyForVipsCheckBox_Checked(object sender, RoutedEventArgs e)
+        {
+            if (_appSettings != null)
+            {
+                _appSettings.VoiceOnlyForVips = true;
+                SaveAppSettings();
+            }
+        }
+
+        private void VoiceOnlyForVipsCheckBox_Unchecked(object sender, RoutedEventArgs e)
+        {
+            if (_appSettings != null)
+            {
+                _appSettings.VoiceOnlyForVips = false;
+                SaveAppSettings();
+            }
+        }
+
+        private void VoiceOnlyForModeratorsCheckBox_Checked(object sender, RoutedEventArgs e)
+        {
+            if (_appSettings != null)
+            {
+                _appSettings.VoiceOnlyForModerators = true;
+                SaveAppSettings();
+            }
+        }
+
+        private void VoiceOnlyForModeratorsCheckBox_Unchecked(object sender, RoutedEventArgs e)
+        {
+            if (_appSettings != null)
+            {
+                _appSettings.VoiceOnlyForModerators = false;
+                SaveAppSettings();
+            }
+        }
+
         private void ChatTriggerSymbolTextBox_TextChanged(object sender, TextChangedEventArgs e)
         {
             if (sender is TextBox textBox && _appSettings != null)
             {
                 _appSettings.ChatTriggerSymbol = textBox.Text;
                 SaveAppSettings();
+            }
+        }
+
+        private void MaxChatMessagesTextBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (sender is TextBox textBox && _appSettings != null)
+            {
+                if (int.TryParse(textBox.Text, out int maxMessages) && maxMessages > 0)
+                {
+                    _appSettings.MaxChatMessages = maxMessages;
+                    SaveAppSettings();
+                }
+            }
+        }
+
+        private void VolumeSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (sender is Slider slider && VolumeTextBlock != null)
+            {
+                var volume = (int)slider.Value;
+                VolumeTextBlock.Text = $"{volume}%";
+                
+                // Обновляем громкость в голосовых настройках
+                if (_voiceSettings != null)
+                {
+                    foreach (var profile in _voiceSettings.VoiceProfiles)
+                    {
+                        profile.Volume = volume;
+                    }
+                    UpdateVoiceSettings();
+                }
             }
         }
 
@@ -508,6 +699,16 @@ namespace SilentCaster
             }
         }
 
+        private void OpenForbiddenWordsButton_Click(object sender, RoutedEventArgs e)
+        {
+            var forbiddenWordsWindow = new ForbiddenWordsWindow(_forbiddenWordsService);
+            forbiddenWordsWindow.Owner = this;
+            forbiddenWordsWindow.ShowDialog();
+            
+            // Обновляем список запрещенных слов
+            _forbiddenWordsService.LoadForbiddenWords();
+        }
+
         private void RemoveResponseButton_Click(object sender, RoutedEventArgs e)
         {
             if (QuickResponsesListBox.SelectedItem is QuickResponse selectedResponse)
@@ -520,12 +721,18 @@ namespace SilentCaster
 
         protected override void OnClosed(EventArgs e)
         {
-            // Сохраняем настройки перед закрытием
+            // Сохраняем настройки приложения
             SaveAppSettings();
             
-            // Отключаемся от чата синхронно при закрытии окна
-            _twitchService.Disconnect();
-            _speechService.Dispose();
+            // Отключаемся от чата
+            if (_twitchService.IsConnected)
+            {
+                _twitchService.DisconnectAsync().Wait();
+            }
+            
+            // Освобождаем ресурсы
+            _speechService?.Dispose();
+            
             base.OnClosed(e);
         }
 

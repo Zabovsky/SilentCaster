@@ -74,7 +74,10 @@ namespace SilentCaster.Services
                 {
                     Username = e.ChatMessage.Username,
                     Message = e.ChatMessage.Message,
-                    Timestamp = DateTime.Now
+                    Timestamp = DateTime.Now,
+                    IsSubscriber = e.ChatMessage.IsSubscriber,
+                    IsVip = e.ChatMessage.IsVip,
+                    IsModerator = e.ChatMessage.IsModerator
                 };
                 MessageReceived?.Invoke(this, chatMessage);
             };

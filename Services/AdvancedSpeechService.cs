@@ -11,19 +11,51 @@ using SilentCaster.Services;
 
 namespace SilentCaster.Services
 {
-    public class AdvancedSpeechService
+    public class AdvancedSpeechService : IDisposable
     {
-        private readonly SpeechSynthesizer _synthesizer;
+        private SpeechSynthesizer? _synthesizer;
         private readonly AudioDeviceService? _audioDeviceService;
         private readonly Random _random;
         private VoiceSettings _voiceSettings;
+        private bool _disposed = false;
+        private readonly object _lockObject = new object();
 
         public AdvancedSpeechService(AudioDeviceService? audioDeviceService = null)
         {
-            _synthesizer = new SpeechSynthesizer();
             _audioDeviceService = audioDeviceService;
             _random = new Random();
             _voiceSettings = new VoiceSettings();
+            InitializeSynthesizer();
+        }
+
+        private void InitializeSynthesizer()
+        {
+            lock (_lockObject)
+            {
+                if (_disposed) return;
+                
+                try
+                {
+                    _synthesizer?.Dispose();
+                    _synthesizer = new SpeechSynthesizer();
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Ошибка инициализации синтезатора: {ex.Message}");
+                }
+            }
+        }
+
+        private SpeechSynthesizer? GetSynthesizer()
+        {
+            lock (_lockObject)
+            {
+                if (_disposed || _synthesizer == null)
+                {
+                    InitializeSynthesizer();
+                }
+                return _synthesizer;
+            }
         }
 
         public async Task SpeakAsync(string text, string? username = null, string messageType = "chat")
@@ -37,6 +69,13 @@ namespace SilentCaster.Services
             {
                 try
                 {
+                    var synthesizer = GetSynthesizer();
+                    if (synthesizer == null)
+                    {
+                        System.Diagnostics.Debug.WriteLine("Синтезатор недоступен");
+                        return;
+                    }
+
                     // Выбираем профиль голоса в зависимости от настроек
                     var selectedProfile = SelectVoiceProfile(messageType);
                     
@@ -66,6 +105,13 @@ namespace SilentCaster.Services
         {
             try
             {
+                var synthesizer = GetSynthesizer();
+                if (synthesizer == null)
+                {
+                    System.Diagnostics.Debug.WriteLine("Синтезатор недоступен для воспроизведения");
+                    return;
+                }
+
                 // Создаем временный файл для аудио
                 var tempFile = Path.GetTempFileName();
                 tempFile = Path.ChangeExtension(tempFile, ".wav");
@@ -73,8 +119,8 @@ namespace SilentCaster.Services
                 // Синтезируем речь в файл
                 using (var stream = new FileStream(tempFile, FileMode.Create))
                 {
-                    _synthesizer.SetOutputToWaveStream(stream);
-                    _synthesizer.Speak(text);
+                    synthesizer.SetOutputToWaveStream(stream);
+                    synthesizer.Speak(text);
                 }
 
                 // Воспроизводим через выбранное устройство
@@ -93,9 +139,21 @@ namespace SilentCaster.Services
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Ошибка воспроизведения через выбранное устройство: {ex.Message}");
+                
                 // Возвращаемся к стандартному воспроизведению
-                _synthesizer.SetOutputToDefaultAudioDevice();
-                _synthesizer.Speak(text);
+                try
+                {
+                    var synthesizer = GetSynthesizer();
+                    if (synthesizer != null)
+                    {
+                        synthesizer.SetOutputToDefaultAudioDevice();
+                        synthesizer.Speak(text);
+                    }
+                }
+                catch (Exception fallbackEx)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Ошибка стандартного воспроизведения: {fallbackEx.Message}");
+                }
             }
         }
 
@@ -162,10 +220,21 @@ namespace SilentCaster.Services
 
         public List<string> GetAvailableVoices()
         {
-            return _synthesizer.GetInstalledVoices()
-                .Where(v => v.Enabled)
-                .Select(v => v.VoiceInfo.Name)
-                .ToList();
+            var synthesizer = GetSynthesizer();
+            if (synthesizer == null) return new List<string>();
+
+            try
+            {
+                return synthesizer.GetInstalledVoices()
+                    .Where(v => v.Enabled)
+                    .Select(v => v.VoiceInfo.Name)
+                    .ToList();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Ошибка получения доступных голосов: {ex.Message}");
+                return new List<string>();
+            }
         }
 
         public void SelectVoice(string voiceName)
@@ -174,7 +243,8 @@ namespace SilentCaster.Services
             {
                 try
                 {
-                    _synthesizer.SelectVoice(voiceName);
+                    var synthesizer = GetSynthesizer();
+                    synthesizer?.SelectVoice(voiceName);
                 }
                 catch (Exception ex)
                 {
@@ -185,12 +255,34 @@ namespace SilentCaster.Services
 
         public void SetRate(int rate)
         {
-            _synthesizer.Rate = rate;
+            try
+            {
+                var synthesizer = GetSynthesizer();
+                if (synthesizer != null)
+                {
+                    synthesizer.Rate = rate;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Ошибка установки скорости: {ex.Message}");
+            }
         }
 
         public void SetVolume(int volume)
         {
-            _synthesizer.Volume = volume;
+            try
+            {
+                var synthesizer = GetSynthesizer();
+                if (synthesizer != null)
+                {
+                    synthesizer.Volume = volume;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Ошибка установки громкости: {ex.Message}");
+            }
         }
 
         public void UpdateSettings(VoiceSettings settings)
@@ -291,7 +383,14 @@ namespace SilentCaster.Services
 
         public void Dispose()
         {
-            _synthesizer?.Dispose();
+            lock (_lockObject)
+            {
+                if (_disposed) return;
+                
+                _synthesizer?.Dispose();
+                _synthesizer = null;
+                _disposed = true;
+            }
         }
     }
 } 

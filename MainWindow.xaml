@@ -175,7 +175,16 @@
                                 <RowDefinition Height="*"/>
                             </Grid.RowDefinitions>
                             
-                            <TextBlock Grid.Row="0" Text="Сообщения чата" FontWeight="Bold" Padding="16,12" Background="{StaticResource CardBrush}" Foreground="{StaticResource AccentBrush}"/>
+                            <Grid Grid.Row="0" Background="{StaticResource CardBrush}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Сообщения чата" FontWeight="Bold" Padding="16,12" Foreground="{StaticResource AccentBrush}"/>
+                                <Button Grid.Column="1" Content="🗑️ Очистить" Click="ClearChatButton_Click" 
+                                        Style="{StaticResource ModernButton}" Width="100" Height="28" Margin="8,8,16,8"
+                                        ToolTip="Очистить все сообщения чата"/>
+                            </Grid>
                             <ListBox Grid.Row="1" x:Name="ChatMessagesListBox" 
                                      Background="Transparent" BorderThickness="0"
                                      MouseDoubleClick="ChatMessagesListBox_MouseDoubleClick">
@@ -197,12 +206,33 @@
                             <StackPanel Margin="16">
                                 <TextBlock Text="Быстрые действия" FontWeight="Bold" Margin="0,0,0,16"/>
                                 
+                                <!-- Регулятор громкости -->
+                                <Border Background="{StaticResource CardBrush}" CornerRadius="8" Padding="12" Margin="0,0,0,16">
+                                    <StackPanel>
+                                        <TextBlock Text="🔊 Громкость:" FontSize="11" Margin="0,0,0,4"
+                                                   Foreground="{StaticResource ForegroundBrush}"/>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Slider x:Name="VolumeSlider" Grid.Column="0" 
+                                                    Minimum="0" Maximum="100" Value="100" 
+                                                    ValueChanged="VolumeSlider_ValueChanged"
+                                                    ToolTip="Регулировка громкости озвучки"/>
+                                            <TextBlock Grid.Column="1" x:Name="VolumeTextBlock" Text="100%" 
+                                                       Margin="8,0,0,0" VerticalAlignment="Center"
+                                                       Foreground="{StaticResource ForegroundBrush}"/>
+                                        </Grid>
+                                    </StackPanel>
+                                </Border>
+                                
                                 <!-- Поле для написания сообщений -->
                                 <Border Background="{StaticResource CardBrush}" CornerRadius="8" Padding="12" Margin="0,0,0,16">
                                     <StackPanel>
                                         <TextBlock Text="Написать сообщение:" FontSize="11" Margin="0,0,0,4"
                                                    Foreground="{StaticResource ForegroundBrush}"/>
-                                        <TextBox x:Name="MessageTextBox" Height="60" 
+                                        <TextBox x:Name="MessageTextBox" Height="120" 
                                                  AcceptsReturn="True" TextWrapping="Wrap" 
                                                  VerticalScrollBarVisibility="Auto" Margin="0,0,0,8"
                                                  Padding="8,6"
@@ -218,7 +248,7 @@
                                 <!-- Быстрые ответы -->
                                 <TextBlock Text="Быстрые ответы:" FontSize="11" Margin="0,0,0,4"
                                            Foreground="{StaticResource ForegroundBrush}"/>
-                                <ListBox x:Name="QuickResponsesListBox" Height="150" 
+                                <ListBox x:Name="QuickResponsesListBox" Height="200" 
                                          Background="Transparent" BorderThickness="0"
                                          SelectionChanged="QuickResponsesListBox_SelectionChanged">
                                     <ListBox.ItemTemplate>
@@ -287,6 +317,29 @@
                                                   Unchecked="EnableChatVoiceCheckBox_Unchecked"
                                                   Foreground="{StaticResource ForegroundBrush}"/>
                                         
+                                        <TextBlock Text="Ограничения по ролям (можно комбинировать):" 
+                                                   FontWeight="Bold" Margin="0,8,0,4" 
+                                                   Foreground="{StaticResource ForegroundBrush}"/>
+                                        
+                                        <CheckBox x:Name="VoiceOnlyForSubscribersCheckBox" Content="⭐ Подписчики" 
+                                                  Margin="0,0,0,4" Checked="VoiceOnlyForSubscribersCheckBox_Checked" 
+                                                  Unchecked="VoiceOnlyForSubscribersCheckBox_Unchecked"
+                                                  Foreground="{StaticResource ForegroundBrush}"/>
+                                        
+                                        <CheckBox x:Name="VoiceOnlyForVipsCheckBox" Content="💎 VIP" 
+                                                  Margin="0,0,0,4" Checked="VoiceOnlyForVipsCheckBox_Checked" 
+                                                  Unchecked="VoiceOnlyForVipsCheckBox_Unchecked"
+                                                  Foreground="{StaticResource ForegroundBrush}"/>
+                                        
+                                        <CheckBox x:Name="VoiceOnlyForModeratorsCheckBox" Content="🛡️ Модераторы" 
+                                                  Margin="0,0,0,4" Checked="VoiceOnlyForModeratorsCheckBox_Checked" 
+                                                  Unchecked="VoiceOnlyForModeratorsCheckBox_Unchecked"
+                                                  Foreground="{StaticResource ForegroundBrush}"/>
+                                        
+                                        <TextBlock Text="💡 Если не выбрано ни одной роли - озвучиваются все сообщения" 
+                                                   FontSize="10" Opacity="0.7" Margin="0,4,0,8" 
+                                                   Foreground="{StaticResource ForegroundBrush}"/>
+                                        
                                         <Grid Margin="0,8,0,0">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="Auto"/>
@@ -294,14 +347,22 @@
                                             </Grid.ColumnDefinitions>
                                             <Grid.RowDefinitions>
                                                 <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
                                             </Grid.RowDefinitions>
                                             
-                                            <TextBlock Grid.Column="0" Text="Символ триггера:" VerticalAlignment="Center" 
+                                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Символ триггера:" VerticalAlignment="Center" 
                                                        Margin="0,0,8,0" Foreground="{StaticResource ForegroundBrush}"/>
-                                            <TextBox Grid.Column="1" x:Name="ChatTriggerSymbolTextBox" Text="!!!" 
+                                            <TextBox Grid.Row="0" Grid.Column="1" x:Name="ChatTriggerSymbolTextBox" Text="!!!" 
                                                      Width="100" HorizontalAlignment="Left"
                                                      TextChanged="ChatTriggerSymbolTextBox_TextChanged"
                                                      ToolTip="Сообщения, содержащие этот символ, будут озвучены"/>
+                                            
+                                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Макс. сообщений:" VerticalAlignment="Center" 
+                                                       Margin="0,8,8,0" Foreground="{StaticResource ForegroundBrush}"/>
+                                            <TextBox Grid.Row="1" Grid.Column="1" x:Name="MaxChatMessagesTextBox" Text="100" 
+                                                     Width="100" HorizontalAlignment="Left" Margin="0,8,0,0"
+                                                     TextChanged="MaxChatMessagesTextBox_TextChanged"
+                                                     ToolTip="Максимальное количество сообщений в чате"/>
                                         </Grid>
                                     </StackPanel>
                                 </Border>
@@ -335,6 +396,11 @@
                                             Style="{StaticResource ModernButton}" Width="200" Height="32"/>
                                     <Button Content="🎵 Тест голоса" Click="TestVoiceButton_Click" 
                                             Style="{StaticResource ModernButton}" Width="120" Height="32" Margin="8,0,0,0"/>
+                                </StackPanel>
+                                
+                                <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                    <Button Content="🚫 Запрещенные слова" Click="OpenForbiddenWordsButton_Click" 
+                                            Style="{StaticResource ModernButton}" Width="200" Height="32"/>
                                 </StackPanel>
                             </StackPanel>
                         </Border>

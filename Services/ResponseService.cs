@@ -40,6 +40,23 @@ namespace SilentCaster.Services
             return responses.Distinct().ToList();
         }
 
+        public List<string> GetPersonalResponsesForMessage(string message)
+        {
+            var responses = new List<string>();
+
+            // Ищем только персональные ответы (IsQuickResponse == false)
+            foreach (var response in _responses.Where(r => !r.IsQuickResponse))
+            {
+                if (response.Trigger == "*" || 
+                    message.ToLower().Contains(response.Trigger.ToLower()))
+                {
+                    responses.AddRange(response.Responses);
+                }
+            }
+
+            return responses.Distinct().ToList();
+        }
+
         public void AddResponse(QuickResponse response)
         {
             _responses.Add(response);
@@ -61,6 +78,23 @@ namespace SilentCaster.Services
             SaveResponses();
         }
 
+        public List<QuickResponse> GetQuickResponses()
+        {
+            return _responses.Where(r => r.IsQuickResponse).ToList();
+        }
+
+        public List<QuickResponse> GetPersonalResponses()
+        {
+            return _responses.Where(r => !r.IsQuickResponse).ToList();
+        }
+
+        public void UpdateAllResponses(List<QuickResponse> newResponses)
+        {
+            _responses.Clear();
+            _responses.AddRange(newResponses);
+            SaveResponses();
+        }
+
         private void LoadResponses()
         {
             try
@@ -72,39 +106,25 @@ namespace SilentCaster.Services
                 }
                 else
                 {
-                    // 创建默认响应
+                    // Создаем примеры быстрых и персональных ответов
                     _responses = new List<QuickResponse>
                     {
-                        new QuickResponse
-                        {
-                            Trigger = "привет",
-                            Responses = new List<string>
-                            {
-                                "Приветики, {username}!",
-                                "Рад тебя видеть, {username}!"
-                            }
-                        },
-                        new QuickResponse
-                        {
-                            Trigger = "*",
-                            Responses = new List<string>
-                            {
-                                "Спасибо, {username}!",
-                                "Ты крут, {username}!"
-                            }
-                        }
+                        new QuickResponse { Trigger = "привет", Responses = new List<string>{"Привет всем!", "Приветики!"}, IsQuickResponse = true },
+                        new QuickResponse { Trigger = "спасибо", Responses = new List<string>{"Пожалуйста!", "Рад помочь!"}, IsQuickResponse = true },
+                        new QuickResponse { Trigger = "follow", Responses = new List<string>{"Спасибо за фоллоу, {username}!"}, IsQuickResponse = false },
+                        new QuickResponse { Trigger = "привет, {username}", Responses = new List<string>{"Привет, {username}!"}, IsQuickResponse = false }
                     };
                     SaveResponses();
                 }
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"加载响应文件错误: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Ошибка загрузки ответов: {ex.Message}");
                 _responses = new List<QuickResponse>();
             }
         }
 
-        private void SaveResponses()
+        public void SaveResponses()
         {
             try
             {
@@ -113,7 +133,7 @@ namespace SilentCaster.Services
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"保存响应文件错误: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Ошибка сохранения ответов: {ex.Message}");
             }
         }
     }

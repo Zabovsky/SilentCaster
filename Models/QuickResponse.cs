@@ -13,6 +13,7 @@ namespace SilentCaster.Models
         public bool UseForChatMessages { get; set; } = true;
         public bool UseForManualMessages { get; set; } = true;
         public bool UseForQuickResponses { get; set; } = true;
+        public bool IsQuickResponse { get; set; } = false;
         public double UsageChance { get; set; } = 100;
         public double Delay { get; set; } = 0;
     }
