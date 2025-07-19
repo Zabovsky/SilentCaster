@@ -1,0 +1,288 @@
+<Window x:Class="SilentCaster.StreamEventsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Настройки событий стрима" Height="800" Width="1000"
+        WindowStartupLocation="CenterOwner"
+        Background="#FF1E1E1E" Foreground="White"
+        WindowStyle="None" AllowsTransparency="True"
+        ResizeMode="CanResize">
+    
+    <Window.Resources>
+        <SolidColorBrush x:Key="CardBrush" Color="#FF2D2D30"/>
+        <SolidColorBrush x:Key="BorderBrush" Color="#FF3F3F46"/>
+        <SolidColorBrush x:Key="AccentBrush" Color="#FF007ACC"/>
+        <SolidColorBrush x:Key="SuccessBrush" Color="#FF28A745"/>
+        <SolidColorBrush x:Key="WarningBrush" Color="#FFFFC107"/>
+        <SolidColorBrush x:Key="ErrorBrush" Color="#FFDC3545"/>
+        
+        <Style x:Key="ModernButton" TargetType="Button">
+            <Setter Property="Background" Value="#FF3F3F46"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="12,6"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" 
+                                CornerRadius="4" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#FF007ACC"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="Background" Value="#FF005A9E"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+    
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="40"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="80"/>
+        </Grid.RowDefinitions>
+        
+        <!-- Заголовок окна -->
+        <Border Grid.Row="0" Background="#FF007ACC" MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="12,0">
+                    <TextBlock Text="🎉" FontSize="18" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <TextBlock Text="Настройки событий стрима" 
+                               VerticalAlignment="Center" FontWeight="Bold" FontSize="16"/>
+                </StackPanel>
+                
+                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <Button Content="🗕" Click="MinimizeButton_Click" 
+                            Style="{StaticResource ModernButton}" Width="40" Height="40"/>
+                    <Button Content="🗖" Click="MaximizeButton_Click" 
+                            Style="{StaticResource ModernButton}" Width="40" Height="40"/>
+                    <Button Content="✕" Click="CloseButton_Click" 
+                            Style="{StaticResource ModernButton}" Width="40" Height="40"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+        
+        <!-- Основное содержимое -->
+        <Grid Grid.Row="1" Margin="16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            
+            <!-- Список событий -->
+            <Border Grid.Column="0" Background="{StaticResource CardBrush}" CornerRadius="8" Padding="16" Margin="0,0,8,0">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    
+                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,16">
+                        <TextBlock Text="🎉" FontSize="16" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <TextBlock Text="События стрима" FontWeight="Bold" FontSize="14" VerticalAlignment="Center"/>
+                    </StackPanel>
+                    
+                    <!-- Фильтр по типу -->
+                    <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,12">
+                        <TextBlock Text="Фильтр:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="White"/>
+                        <ComboBox x:Name="EventTypeFilterComboBox" Width="150" 
+                                  SelectionChanged="EventTypeFilterComboBox_SelectionChanged"
+                                  Background="#FF2D2D30" BorderBrush="{StaticResource AccentBrush}" 
+                                  Foreground="White" Padding="8,6"/>
+                    </StackPanel>
+                    
+                    <ListBox x:Name="EventsListBox" Grid.Row="2" 
+                             SelectionChanged="EventsListBox_SelectionChanged"
+                             Background="Transparent" BorderThickness="1" BorderBrush="{StaticResource BorderBrush}"
+                             Margin="0,0,0,12">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Border Padding="12,8" Margin="2" Background="#FF3F3F46" CornerRadius="6">
+                                    <StackPanel Orientation="Horizontal">
+                                        <CheckBox IsChecked="{Binding IsEnabled}" Margin="0,0,8,0" 
+                                                  VerticalAlignment="Center" Foreground="White"/>
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding Name}" FontWeight="Bold" 
+                                                       Foreground="White"/>
+                                            <TextBlock Text="{Binding Description}" FontSize="10" 
+                                                       Foreground="#FFCCCCCC"/>
+                                            <TextBlock Text="{Binding Type}" FontSize="9" 
+                                                       Foreground="{StaticResource AccentBrush}"/>
+                                            <TextBlock x:Name="EventDetailsText" FontSize="8" 
+                                                       Foreground="#FF00FF00"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                    
+                    <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Center">
+                        <Button x:Name="AddEventButton" Content="➕ Добавить" Width="80" Margin="4" 
+                                Click="AddEventButton_Click" Style="{StaticResource ModernButton}"/>
+                        <Button x:Name="EditEventButton" Content="✏️ Изменить" Width="80" Margin="4" 
+                                Click="EditEventButton_Click" Style="{StaticResource ModernButton}"/>
+                        <Button x:Name="RemoveEventButton" Content="🗑️ Удалить" Width="80" Margin="4" 
+                                Click="RemoveEventButton_Click" Style="{StaticResource ModernButton}"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+            
+            <!-- Разделитель -->
+            <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Center" 
+                          Background="{StaticResource BorderBrush}"/>
+            
+            <!-- Детали события -->
+            <Border Grid.Column="2" Background="{StaticResource CardBrush}" CornerRadius="8" Padding="16" Margin="8,0,0,0">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel x:Name="EventDetailsPanel" IsEnabled="False">
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
+                            <TextBlock Text="⚙️" FontSize="16" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            <TextBlock Text="Детали события" FontWeight="Bold" FontSize="14" VerticalAlignment="Center"/>
+                        </StackPanel>
+                        
+                        <Border Background="#FF3F3F46" CornerRadius="6" Padding="16" Margin="0,0,0,16">
+                            <StackPanel>
+                                <TextBlock Text="Основные настройки" FontWeight="Bold" Margin="0,0,0,12" Foreground="White"/>
+                                
+                                <TextBlock Text="Название:" Margin="0,5,0,2" Foreground="White"/>
+                                <TextBox x:Name="EventNameTextBox" Margin="0,0,0,10" 
+                                         Background="#FF2D2D30" BorderBrush="{StaticResource AccentBrush}" 
+                                         Foreground="White" Padding="8,6"/>
+                                
+                                <TextBlock Text="Описание:" Margin="0,5,0,2" Foreground="White"/>
+                                <TextBox x:Name="EventDescriptionTextBox" Margin="0,0,0,10" 
+                                         Background="#FF2D2D30" BorderBrush="{StaticResource AccentBrush}" 
+                                         Foreground="White" Padding="8,6"/>
+                                
+                                <TextBlock Text="Тип события:" Margin="0,5,0,2" Foreground="White"/>
+                                <ComboBox x:Name="EventTypeComboBox" Margin="0,0,0,10" 
+                                          SelectionChanged="EventTypeComboBox_SelectionChanged"
+                                          Background="#FF2D2D30" BorderBrush="{StaticResource AccentBrush}" 
+                                          Foreground="White" Padding="8,6"/>
+                            </StackPanel>
+                        </Border>
+                        
+                        <Border Background="#FF3F3F46" CornerRadius="6" Padding="16" Margin="0,0,0,16">
+                            <StackPanel>
+                                <TextBlock Text="Параметры срабатывания" FontWeight="Bold" Margin="0,0,0,12" Foreground="White"/>
+                                
+                                <TextBlock Text="Приоритет:" Margin="0,5,0,2" Foreground="White"/>
+                                <Slider x:Name="EventPrioritySlider" Minimum="1" Maximum="10" Value="1" 
+                                        TickFrequency="1" IsSnapToTickEnabled="True" Margin="0,0,0,5"
+                                        Foreground="{StaticResource AccentBrush}"/>
+                                <TextBlock x:Name="EventPriorityValueText" Text="1" HorizontalAlignment="Center" 
+                                           Margin="0,0,0,10" Foreground="White"/>
+                                
+                                <TextBlock Text="Шанс срабатывания (%):" Margin="0,5,0,2" Foreground="White"/>
+                                <Slider x:Name="EventUsageChanceSlider" Minimum="1" Maximum="100" Value="100" 
+                                        TickFrequency="5" IsSnapToTickEnabled="True" Margin="0,0,0,5"
+                                        Foreground="{StaticResource AccentBrush}"/>
+                                <TextBlock x:Name="EventUsageChanceValueText" Text="100%" HorizontalAlignment="Center" 
+                                           Margin="0,0,0,10" Foreground="White"/>
+                                
+                                <CheckBox x:Name="EventIsEnabledCheckBox" Content="Включено" Margin="0,5,0,10" 
+                                          Foreground="White"/>
+                            </StackPanel>
+                        </Border>
+                        
+                        <!-- Настройки для донатов -->
+                        <Border x:Name="DonationSettingsPanel" Background="#FF3F3F46" CornerRadius="6" Padding="16" 
+                                Margin="0,0,0,16" Visibility="Collapsed">
+                            <StackPanel>
+                                <TextBlock Text="Настройки донатов" FontWeight="Bold" Margin="0,0,0,12" Foreground="White"/>
+                                
+                                <TextBlock Text="Минимальная сумма ($):" Margin="0,5,0,2" Foreground="White"/>
+                                <TextBox x:Name="MinAmountTextBox" Margin="0,0,0,10" 
+                                         Background="#FF2D2D30" BorderBrush="{StaticResource AccentBrush}" 
+                                         Foreground="White" Padding="8,6"/>
+                                
+                                <TextBlock Text="Максимальная сумма ($):" Margin="0,5,0,2" Foreground="White"/>
+                                <TextBox x:Name="MaxAmountTextBox" Margin="0,0,0,10" 
+                                         Background="#FF2D2D30" BorderBrush="{StaticResource AccentBrush}" 
+                                         Foreground="White" Padding="8,6"/>
+                            </StackPanel>
+                        </Border>
+                        
+                        <!-- Настройки для подписок -->
+                        <Border x:Name="SubscriptionSettingsPanel" Background="#FF3F3F46" CornerRadius="6" Padding="16" 
+                                Margin="0,0,0,16" Visibility="Collapsed">
+                            <StackPanel>
+                                <TextBlock Text="Настройки подписок" FontWeight="Bold" Margin="0,0,0,12" Foreground="White"/>
+                                
+                                <TextBlock Text="Минимальное количество месяцев:" Margin="0,5,0,2" Foreground="White"/>
+                                <TextBox x:Name="SubscriberMonthsTextBox" Margin="0,0,0,10" 
+                                         Background="#FF2D2D30" BorderBrush="{StaticResource AccentBrush}" 
+                                         Foreground="White" Padding="8,6"/>
+                            </StackPanel>
+                        </Border>
+                        
+                        <!-- Настройки для рейдов -->
+                        <Border x:Name="RaidSettingsPanel" Background="#FF3F3F46" CornerRadius="6" Padding="16" 
+                                Margin="0,0,0,16" Visibility="Collapsed">
+                            <StackPanel>
+                                <TextBlock Text="Настройки рейдов" FontWeight="Bold" Margin="0,0,0,12" Foreground="White"/>
+                                
+                                <TextBlock Text="Минимальное количество зрителей:" Margin="0,5,0,2" Foreground="White"/>
+                                <TextBox x:Name="RaidViewersTextBox" Margin="0,0,0,10" 
+                                         Background="#FF2D2D30" BorderBrush="{StaticResource AccentBrush}" 
+                                         Foreground="White" Padding="8,6"/>
+                            </StackPanel>
+                        </Border>
+                        
+                        <Border Background="#FF3F3F46" CornerRadius="6" Padding="16" Margin="0,0,0,16">
+                            <StackPanel>
+                                <TextBlock Text="Ответы" FontWeight="Bold" Margin="0,0,0,12" Foreground="White"/>
+                                
+                                <TextBlock Text="Ответы (по одному на строку):" Margin="0,5,0,2" Foreground="White"/>
+                                <TextBox x:Name="EventResponsesTextBox" Height="120" TextWrapping="Wrap" 
+                                         AcceptsReturn="True" VerticalScrollBarVisibility="Auto" 
+                                         Margin="0,0,0,10" Background="#FF2D2D30" BorderBrush="{StaticResource AccentBrush}" 
+                                         Foreground="White" Padding="8,6"/>
+                                
+                                <TextBlock Text="Подсказка: используйте {username} для подстановки имени пользователя" 
+                                           FontSize="9" Foreground="#FFCCCCCC" Margin="0,0,0,10"/>
+                            </StackPanel>
+                        </Border>
+                        
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <Button x:Name="SaveEventButton" Content="💾 Сохранить" Width="100" Margin="4" 
+                                    Click="SaveEventButton_Click" Style="{StaticResource ModernButton}"
+                                    Background="{StaticResource SuccessBrush}"/>
+                            <Button x:Name="CancelEventButton" Content="❌ Отмена" Width="100" Margin="4" 
+                                    Click="CancelEventButton_Click" Style="{StaticResource ModernButton}"
+                                    Background="{StaticResource ErrorBrush}"/>
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </Border>
+        </Grid>
+        
+        <!-- Кнопки внизу -->
+        <Border Grid.Row="2" Background="{StaticResource CardBrush}" Padding="16" Margin="0,8,0,0">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                <Button x:Name="ResetToDefaultsButton" Content="🔄 Сбросить к настройкам по умолчанию" 
+                        Width="250" Height="40" Margin="8" Click="ResetToDefaultsButton_Click" 
+                        Style="{StaticResource ModernButton}" Background="{StaticResource WarningBrush}"/>
+                <Button x:Name="CloseButton" Content="✕ Закрыть" Width="120" Height="40" Margin="8" 
+                        Click="CloseButton_Click" Style="{StaticResource ModernButton}"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window> 

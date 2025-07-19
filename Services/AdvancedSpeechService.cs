@@ -36,12 +36,35 @@ namespace SilentCaster.Services
                 
                 try
                 {
-                    _synthesizer?.Dispose();
+                    // Безопасно освобождаем старый синтезатор
+                    if (_synthesizer != null)
+                    {
+                        try
+                        {
+                            _synthesizer.Dispose();
+                        }
+                        catch (ObjectDisposedException)
+                        {
+                            // Синтезатор уже был освобожден, это нормально
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"Ошибка освобождения синтезатора: {ex.Message}");
+                        }
+                        _synthesizer = null;
+                    }
+                    
+                    // Создаем новый синтезатор
                     _synthesizer = new SpeechSynthesizer();
+                    
+                    // Проверяем, что синтезатор работает
+                    var state = _synthesizer.State;
+                    System.Diagnostics.Debug.WriteLine($"Синтезатор инициализирован, состояние: {state}");
                 }
                 catch (Exception ex)
                 {
                     System.Diagnostics.Debug.WriteLine($"Ошибка инициализации синтезатора: {ex.Message}");
+                    _synthesizer = null;
                 }
             }
         }
@@ -50,10 +73,33 @@ namespace SilentCaster.Services
         {
             lock (_lockObject)
             {
-                if (_disposed || _synthesizer == null)
+                if (_disposed) return null;
+                
+                try
                 {
+                    // Проверяем, не закрыт ли синтезатор
+                    if (_synthesizer != null)
+                    {
+                        // Пытаемся получить состояние - если синтезатор закрыт, это вызовет исключение
+                        var state = _synthesizer.State;
+                    }
+                    else
+                    {
+                        InitializeSynthesizer();
+                    }
+                }
+                catch (ObjectDisposedException)
+                {
+                    // Синтезатор был закрыт, создаем новый
+                    System.Diagnostics.Debug.WriteLine("Синтезатор был закрыт, создаем новый");
                     InitializeSynthesizer();
                 }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Ошибка проверки состояния синтезатора: {ex.Message}");
+                    InitializeSynthesizer();
+                }
+                
                 return _synthesizer;
             }
         }
@@ -76,6 +122,17 @@ namespace SilentCaster.Services
                         return;
                     }
 
+                    // Дополнительная проверка состояния синтезатора
+                    try
+                    {
+                        var state = synthesizer.State;
+                    }
+                    catch (ObjectDisposedException)
+                    {
+                        System.Diagnostics.Debug.WriteLine("Синтезатор был закрыт во время использования");
+                        return;
+                    }
+
                     // Выбираем профиль голоса в зависимости от настроек
                     var selectedProfile = SelectVoiceProfile(messageType);
                     
@@ -88,6 +145,10 @@ namespace SilentCaster.Services
                     }
                     
                     await SpeakWithSelectedDeviceAsync(processedText);
+                }
+                catch (ObjectDisposedException)
+                {
+                    System.Diagnostics.Debug.WriteLine("Синтезатор был закрыт во время синтеза речи");
                 }
                 catch (Exception ex)
                 {
@@ -387,9 +448,33 @@ namespace SilentCaster.Services
             {
                 if (_disposed) return;
                 
-                _synthesizer?.Dispose();
-                _synthesizer = null;
-                _disposed = true;
+                try
+                {
+                    if (_synthesizer != null)
+                    {
+                        try
+                        {
+                            _synthesizer.Dispose();
+                        }
+                        catch (ObjectDisposedException)
+                        {
+                            // Синтезатор уже был освобожден, это нормально
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"Ошибка освобождения синтезатора в Dispose: {ex.Message}");
+                        }
+                        _synthesizer = null;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Ошибка в Dispose: {ex.Message}");
+                }
+                finally
+                {
+                    _disposed = true;
+                }
             }
         }
     }

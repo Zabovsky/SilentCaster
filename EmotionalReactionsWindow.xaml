@@ -1,0 +1,283 @@
+<Window x:Class="SilentCaster.EmotionalReactionsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Настройки эмоциональных реакций" Height="750" Width="900"
+        WindowStartupLocation="CenterOwner"
+        Background="#FF1E1E1E" Foreground="White"
+        WindowStyle="None" AllowsTransparency="True"
+        ResizeMode="CanResize">
+    
+    <Window.Resources>
+        <SolidColorBrush x:Key="CardBrush" Color="#FF2D2D30"/>
+        <SolidColorBrush x:Key="BorderBrush" Color="#FF3F3F46"/>
+        <SolidColorBrush x:Key="AccentBrush" Color="#FF007ACC"/>
+        <SolidColorBrush x:Key="SuccessBrush" Color="#FF28A745"/>
+        <SolidColorBrush x:Key="WarningBrush" Color="#FFFFC107"/>
+        <SolidColorBrush x:Key="ErrorBrush" Color="#FFDC3545"/>
+        
+        <Style x:Key="ModernButton" TargetType="Button">
+            <Setter Property="Background" Value="#FF3F3F46"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="12,6"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" 
+                                CornerRadius="4" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#FF007ACC"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="Background" Value="#FF005A9E"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+    
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="40"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="80"/>
+        </Grid.RowDefinitions>
+        
+        <!-- Заголовок окна -->
+        <Border Grid.Row="0" Background="#FF007ACC" MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="12,0">
+                    <TextBlock Text="😊" FontSize="18" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <TextBlock Text="Настройки эмоциональных реакций" 
+                               VerticalAlignment="Center" FontWeight="Bold" FontSize="16"/>
+                </StackPanel>
+                
+                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <Button Content="🗕" Click="MinimizeButton_Click" 
+                            Style="{StaticResource ModernButton}" Width="40" Height="40"/>
+                    <Button Content="🗖" Click="MaximizeButton_Click" 
+                            Style="{StaticResource ModernButton}" Width="40" Height="40"/>
+                    <Button Content="✕" Click="CloseButton_Click" 
+                            Style="{StaticResource ModernButton}" Width="40" Height="40"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+        
+        <!-- Основное содержимое -->
+        <Grid Grid.Row="1" Margin="16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            
+            <!-- Список реакций -->
+            <Border Grid.Column="0" Background="{StaticResource CardBrush}" CornerRadius="8" Padding="16" Margin="0,0,8,0">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    
+                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,16">
+                        <TextBlock Text="😊" FontSize="16" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <TextBlock Text="Эмоциональные реакции" FontWeight="Bold" FontSize="14" VerticalAlignment="Center"/>
+                    </StackPanel>
+                    
+                    <ListBox x:Name="ReactionsListBox" Grid.Row="1" 
+                             SelectionChanged="ReactionsListBox_SelectionChanged"
+                             Background="Transparent" BorderThickness="1" BorderBrush="{StaticResource BorderBrush}"
+                             Margin="0,0,0,12">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Border Padding="12,8" Margin="2" Background="#FF3F3F46" CornerRadius="6">
+                                    <StackPanel Orientation="Horizontal">
+                                        <CheckBox IsChecked="{Binding IsEnabled}" Margin="0,0,8,0" 
+                                                  VerticalAlignment="Center" Foreground="White"/>
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding Name}" FontWeight="Bold" 
+                                                       Foreground="White"/>
+                                            <TextBlock Text="{Binding Description}" FontSize="10" 
+                                                       Foreground="#FFCCCCCC"/>
+                                            <TextBlock Text="{Binding Emotion}" FontSize="9" 
+                                                       Foreground="{StaticResource AccentBrush}"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                    
+                    <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center">
+                        <Button x:Name="AddReactionButton" Content="➕ Добавить" Width="80" Margin="4" 
+                                Click="AddReactionButton_Click" Style="{StaticResource ModernButton}"/>
+                        <Button x:Name="EditReactionButton" Content="✏️ Изменить" Width="80" Margin="4" 
+                                Click="EditReactionButton_Click" Style="{StaticResource ModernButton}"/>
+                        <Button x:Name="RemoveReactionButton" Content="🗑️ Удалить" Width="80" Margin="4" 
+                                Click="RemoveReactionButton_Click" Style="{StaticResource ModernButton}"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+            
+            <!-- Разделитель -->
+            <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Center" 
+                          Background="{StaticResource BorderBrush}"/>
+            
+            <!-- Детали реакции -->
+            <Border Grid.Column="2" Background="{StaticResource CardBrush}" CornerRadius="8" Padding="16" Margin="8,0,0,0">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel x:Name="ReactionDetailsPanel" IsEnabled="True">
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
+                            <TextBlock Text="⚙️" FontSize="16" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            <TextBlock Text="Детали реакции" FontWeight="Bold" FontSize="14" VerticalAlignment="Center"/>
+                        </StackPanel>
+                        
+                        <!-- Глобальное отключение -->
+                        <Border Background="#FF3F3F46" CornerRadius="6" Padding="16" Margin="0,0,0,16" IsEnabled="True">
+                            <StackPanel>
+                                <TextBlock Text="🌐 Глобальные настройки" FontWeight="Bold" Margin="0,0,0,12" Foreground="White"/>
+                                
+                                <CheckBox x:Name="GlobalEnabledCheckBox" Content="Включить эмоциональные реакции" 
+                                          Margin="0,0,0,8" Foreground="White" IsChecked="True"
+                                          Checked="GlobalEnabledCheckBox_Checked" Unchecked="GlobalEnabledCheckBox_Unchecked"/>
+                                
+                                <TextBlock Text="💡 Если отключено, эмоциональные реакции не будут срабатывать ни для кого" 
+                                           FontSize="10" Opacity="0.7" TextWrapping="Wrap" Margin="0,4,0,0" Foreground="White"/>
+                            </StackPanel>
+                        </Border>
+                        
+                        <Border Background="#FF3F3F46" CornerRadius="6" Padding="16" Margin="0,0,0,16">
+                            <StackPanel>
+                                <TextBlock Text="Основные настройки" FontWeight="Bold" Margin="0,0,0,12" Foreground="White"/>
+                                
+                                <TextBlock Text="Название:" Margin="0,5,0,2" Foreground="White"/>
+                                <TextBox x:Name="ReactionNameTextBox" Margin="0,0,0,10" 
+                                         Background="#FF2D2D30" BorderBrush="{StaticResource AccentBrush}" 
+                                         Foreground="White" Padding="8,6"/>
+                                
+                                <TextBlock Text="Описание:" Margin="0,5,0,2" Foreground="White"/>
+                                <TextBox x:Name="ReactionDescriptionTextBox" Margin="0,0,0,10" 
+                                         Background="#FF2D2D30" BorderBrush="{StaticResource AccentBrush}" 
+                                         Foreground="White" Padding="8,6"/>
+                                
+                                <TextBlock Text="Тип эмоции:" Margin="0,5,0,2" Foreground="White"/>
+                                <ComboBox x:Name="EmotionTypeComboBox" Margin="0,0,0,10" 
+                                         Background="#FF2D2D30" BorderBrush="{StaticResource AccentBrush}" 
+                                         Foreground="White" Padding="8,6"/>
+                            </StackPanel>
+                        </Border>
+                        
+                        <Border Background="#FF3F3F46" CornerRadius="6" Padding="16" Margin="0,0,0,16">
+                            <StackPanel>
+                                <TextBlock Text="Параметры срабатывания" FontWeight="Bold" Margin="0,0,0,12" Foreground="White"/>
+                                
+                                <TextBlock Text="Приоритет:" Margin="0,5,0,2" Foreground="White"/>
+                                <Slider x:Name="PrioritySlider" Minimum="1" Maximum="10" Value="1" 
+                                        TickFrequency="1" IsSnapToTickEnabled="True" Margin="0,0,0,5"
+                                        Foreground="{StaticResource AccentBrush}"/>
+                                <TextBlock x:Name="PriorityValueText" Text="1" HorizontalAlignment="Center" 
+                                           Margin="0,0,0,10" Foreground="White"/>
+                                
+                                <TextBlock Text="Шанс срабатывания (%):" Margin="0,5,0,2" Foreground="White"/>
+                                <Slider x:Name="UsageChanceSlider" Minimum="1" Maximum="100" Value="100" 
+                                        TickFrequency="5" IsSnapToTickEnabled="True" Margin="0,0,0,5"
+                                        Foreground="{StaticResource AccentBrush}"/>
+                                <TextBlock x:Name="UsageChanceValueText" Text="100%" HorizontalAlignment="Center" 
+                                           Margin="0,0,0,10" Foreground="White"/>
+                                
+                                <TextBlock Text="Кулдаун (секунды):" Margin="0,5,0,2" Foreground="White"/>
+                                <Slider x:Name="CooldownSlider" Minimum="0" Maximum="300" Value="0" 
+                                        TickFrequency="10" IsSnapToTickEnabled="True" Margin="0,0,0,5"
+                                        Foreground="{StaticResource AccentBrush}"/>
+                                <TextBlock x:Name="CooldownValueText" Text="0 сек" HorizontalAlignment="Center" 
+                                           Margin="0,0,0,10" Foreground="White"/>
+                                
+                                <CheckBox x:Name="IsEnabledCheckBox" Content="Включено" Margin="0,5,0,10" 
+                                          Foreground="White"/>
+                            </StackPanel>
+                        </Border>
+                        
+                        <Border Background="#FF3F3F46" CornerRadius="6" Padding="16" Margin="0,0,0,16">
+                            <StackPanel>
+                                <TextBlock Text="Триггеры и ответы" FontWeight="Bold" Margin="0,0,0,12" Foreground="White"/>
+                                
+                                <TextBlock Text="Триггеры (по одному на строку):" Margin="0,5,0,2" Foreground="White"/>
+                                <TextBox x:Name="TriggersTextBox" Height="80" TextWrapping="Wrap" 
+                                         AcceptsReturn="True" VerticalScrollBarVisibility="Auto" 
+                                         Margin="0,0,0,10" Background="#FF2D2D30" BorderBrush="{StaticResource AccentBrush}" 
+                                         Foreground="White" Padding="8,6"/>
+                                
+                                <TextBlock Text="Ответы (по одному на строку):" Margin="0,5,0,2" Foreground="White"/>
+                                <TextBox x:Name="ResponsesTextBox" Height="100" TextWrapping="Wrap" 
+                                         AcceptsReturn="True" VerticalScrollBarVisibility="Auto" 
+                                         Margin="0,0,0,10" Background="#FF2D2D30" BorderBrush="{StaticResource AccentBrush}" 
+                                         Foreground="White" Padding="8,6"/>
+                            </StackPanel>
+                        </Border>
+                        
+                        <!-- Фильтрация по пользователям -->
+                        <Border Background="#FF3F3F46" CornerRadius="6" Padding="16" Margin="0,0,0,16">
+                            <StackPanel>
+                                <TextBlock Text="👥 Фильтрация по пользователям" FontWeight="Bold" Margin="0,0,0,12" Foreground="White"/>
+                                
+                                <CheckBox x:Name="UseUserFilterCheckBox" Content="Использовать фильтр пользователей" 
+                                          Margin="0,0,0,8" Foreground="White"/>
+                                
+                                <CheckBox x:Name="AllowAllUsersCheckBox" Content="Разрешить всем пользователям (кроме заблокированных)" 
+                                          Margin="0,0,0,8" Foreground="White" IsChecked="True"/>
+                                
+                                <TextBlock Text="Разрешенные пользователи (по одному на строку):" Margin="0,8,0,2" Foreground="White"/>
+                                <TextBox x:Name="AllowedUsersTextBox" Height="60" TextWrapping="Wrap" 
+                                         AcceptsReturn="True" VerticalScrollBarVisibility="Auto" 
+                                         Margin="0,0,0,8" Background="#FF2D2D30" BorderBrush="{StaticResource AccentBrush}" 
+                                         Foreground="White" Padding="8,6"/>
+                                
+                                <TextBlock Text="Заблокированные пользователи (по одному на строку):" Margin="0,8,0,2" Foreground="White"/>
+                                <TextBox x:Name="BlockedUsersTextBox" Height="60" TextWrapping="Wrap" 
+                                         AcceptsReturn="True" VerticalScrollBarVisibility="Auto" 
+                                         Margin="0,0,0,10" Background="#FF2D2D30" BorderBrush="{StaticResource AccentBrush}" 
+                                         Foreground="White" Padding="8,6"/>
+                                
+                                <TextBlock Text="💡 Если фильтр включен: разрешенные пользователи смогут вызывать реакцию, заблокированные - нет" 
+                                           FontSize="10" Opacity="0.7" TextWrapping="Wrap" Margin="0,4,0,0" Foreground="White"/>
+                            </StackPanel>
+                        </Border>
+                        
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <Button x:Name="SaveReactionButton" Content="💾 Сохранить" Width="100" Margin="4" 
+                                    Click="SaveReactionButton_Click" Style="{StaticResource ModernButton}"
+                                    Background="{StaticResource SuccessBrush}"/>
+                            <Button x:Name="CancelReactionButton" Content="❌ Отмена" Width="100" Margin="4" 
+                                    Click="CancelReactionButton_Click" Style="{StaticResource ModernButton}"
+                                    Background="{StaticResource ErrorBrush}"/>
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </Border>
+        </Grid>
+        
+        <!-- Кнопки внизу -->
+        <Border Grid.Row="2" Background="{StaticResource CardBrush}" Padding="16" Margin="0,8,0,0">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                <Button x:Name="ResetToDefaultsButton" Content="🔄 Сбросить к настройкам по умолчанию" 
+                        Width="250" Height="40" Margin="8" Click="ResetToDefaultsButton_Click" 
+                        Style="{StaticResource ModernButton}" Background="{StaticResource WarningBrush}"/>
+                <Button x:Name="CloseButton" Content="✕ Закрыть" Width="120" Height="40" Margin="8" 
+                        Click="CloseButton_Click" Style="{StaticResource ModernButton}"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window> 

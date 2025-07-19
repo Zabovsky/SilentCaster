@@ -19,8 +19,13 @@ namespace SilentCaster
         private readonly SettingsService _settingsService;
         private readonly AudioDeviceService _audioDeviceService;
         private readonly ForbiddenWordsService _forbiddenWordsService;
+        private readonly EmotionalReactionsService _emotionalReactionsService;
+        private readonly StreamEventsService _streamEventsService;
+        private readonly OBSService _obsService;
+        private readonly SubtitlesService _subtitlesService;
         private readonly ObservableCollection<ChatMessage> _chatMessages;
         private readonly ObservableCollection<QuickResponse> _responses;
+        private readonly Random _random;
         private VoiceSettings _voiceSettings;
         private AppSettings _appSettings;
 
@@ -28,15 +33,39 @@ namespace SilentCaster
         {
             InitializeComponent();
             
-            _twitchService = new TwitchService();
-            _audioDeviceService = new AudioDeviceService();
-            _speechService = new AdvancedSpeechService(_audioDeviceService);
-            _responseService = new ResponseService();
-            _settingsService = new SettingsService();
-            _forbiddenWordsService = new ForbiddenWordsService();
+            try
+            {
+                System.Diagnostics.Debug.WriteLine("=== ИНИЦИАЛИЗАЦИЯ ГЛАВНОГО ОКНА ===");
+                
+                _twitchService = new TwitchService();
+                _audioDeviceService = new AudioDeviceService();
+                _speechService = new AdvancedSpeechService(_audioDeviceService);
+                _responseService = new ResponseService();
+                _settingsService = new SettingsService();
+                _forbiddenWordsService = new ForbiddenWordsService();
+                
+                System.Diagnostics.Debug.WriteLine("Создаем EmotionalReactionsService...");
+                _emotionalReactionsService = new EmotionalReactionsService();
+                System.Diagnostics.Debug.WriteLine($"EmotionalReactionsService создан: {_emotionalReactionsService != null}");
+                
+                _streamEventsService = new StreamEventsService();
+                _obsService = new OBSService();
+                _subtitlesService = new SubtitlesService(_obsService);
+                
+                System.Diagnostics.Debug.WriteLine("Все сервисы созданы успешно");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"ОШИБКА В КОНСТРУКТОРЕ ГЛАВНОГО ОКНА: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Stack trace: {ex.StackTrace}");
+                MessageBox.Show($"Ошибка инициализации главного окна: {ex.Message}", 
+                               "Критическая ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                throw;
+            }
             
             _chatMessages = new ObservableCollection<ChatMessage>();
             _responses = new ObservableCollection<QuickResponse>();
+            _random = new Random();
             _voiceSettings = new VoiceSettings();
             
             // Добавляем профили по умолчанию, если их нет
@@ -360,6 +389,26 @@ namespace SilentCaster
                     {
                         // Озвучиваем сообщение чата
                         await _speechService.SpeakAsync(message.Message, message.Username, "chat");
+                        
+                        // Показываем субтитры для сообщения чата
+                        await _subtitlesService.ShowSubtitleAsync(message.Message, message.Username);
+                        
+                        // Проверяем эмоциональные реакции
+                        if (_emotionalReactionsService != null)
+                        {
+                            var emotionalReaction = _emotionalReactionsService.GetReactionForMessage(message.Message, message.Username);
+                            if (emotionalReaction != null && emotionalReaction.Responses.Any())
+                            {
+                                // Небольшая задержка перед эмоциональной реакцией
+                                await Task.Delay(500);
+                                
+                                var randomResponse = emotionalReaction.Responses[_random.Next(emotionalReaction.Responses.Count)];
+                                await _speechService.SpeakAsync(randomResponse, "Стример", "emotional");
+                                
+                                // Показываем субтитры для эмоциональной реакции
+                                await _subtitlesService.ShowEmotionalSubtitleAsync(randomResponse, message.Username);
+                            }
+                        }
                     }
                     else
                     {
@@ -418,6 +467,9 @@ namespace SilentCaster
                 if (!_forbiddenWordsService.ContainsForbiddenWords(data.Response))
                 {
                     await _speechService.SpeakAsync(data.Response, data.Username, "quick");
+                    
+                    // Показываем субтитры для быстрого ответа
+                    await _subtitlesService.ShowSubtitleAsync(data.Response, data.Username);
                 }
                 else
                 {
@@ -451,6 +503,9 @@ namespace SilentCaster
                     if (!_forbiddenWordsService.ContainsForbiddenWords(response))
                     {
                         await _speechService.SpeakAsync(response, "Стример", "quick");
+                        
+                        // Показываем субтитры для быстрого ответа
+                        await _subtitlesService.ShowSubtitleAsync(response, "Стример");
                     }
                     else
                     {
@@ -470,6 +525,9 @@ namespace SilentCaster
                 if (!_forbiddenWordsService.ContainsForbiddenWords(message))
                 {
                     await _speechService.SpeakAsync(message, null, "manual");
+                    
+                    // Показываем субтитры для ручного сообщения
+                    await _subtitlesService.ShowSubtitleAsync(message, "Стример");
                 }
                 else
                 {
@@ -709,6 +767,128 @@ namespace SilentCaster
             _forbiddenWordsService.LoadForbiddenWords();
         }
 
+        private void OpenEmotionalReactionsButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                // Подробная отладочная информация
+                System.Diagnostics.Debug.WriteLine("=== ОТЛАДКА ОТКРЫТИЯ ОКНА ЭМОЦИЙ ===");
+                System.Diagnostics.Debug.WriteLine($"Сервис в главном окне: {_emotionalReactionsService != null}");
+                
+                if (_emotionalReactionsService == null)
+                {
+                    System.Diagnostics.Debug.WriteLine("СЕРВИС NULL В ГЛАВНОМ ОКНЕ!");
+                    MessageBox.Show("Ошибка: сервис эмоциональных реакций не инициализирован. Перезапустите приложение.", 
+                                   "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+
+                System.Diagnostics.Debug.WriteLine($"Тип сервиса: {_emotionalReactionsService.GetType().Name}");
+                System.Diagnostics.Debug.WriteLine($"Глобальные настройки: {_emotionalReactionsService.GlobalEnabled}");
+                System.Diagnostics.Debug.WriteLine($"Количество реакций: {_emotionalReactionsService.GetAllReactions().Count}");
+
+                // Создаем окно с явной передачей сервиса
+                var emotionalReactionsWindow = new EmotionalReactionsWindow(_emotionalReactionsService);
+                System.Diagnostics.Debug.WriteLine("Окно создано успешно");
+                
+                emotionalReactionsWindow.Owner = this;
+                emotionalReactionsWindow.ShowDialog();
+                
+                System.Diagnostics.Debug.WriteLine("Окно закрыто");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"ИСКЛЮЧЕНИЕ: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Stack trace: {ex.StackTrace}");
+                MessageBox.Show($"Ошибка открытия настроек эмоциональных реакций: {ex.Message}", 
+                               "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void OpenStreamEventsButton_Click(object sender, RoutedEventArgs e)
+        {
+            var window = new StreamEventsWindow();
+            window.Owner = this;
+            window.ShowDialog();
+        }
+
+        private async void TestEmotionalReactionsButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (_emotionalReactionsService == null)
+                {
+                    MessageBox.Show("Ошибка: сервис эмоциональных реакций не инициализирован.", 
+                                   "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+
+                // Тестируем эмоциональные реакции
+                var testMessage = "хахаха это очень смешно!";
+                var reaction = _emotionalReactionsService.GetReactionForMessage(testMessage);
+                
+                if (reaction != null && reaction.Responses.Any())
+                {
+                    var randomResponse = reaction.Responses[_random.Next(reaction.Responses.Count)];
+                    await _speechService.SpeakAsync(randomResponse, "Стример", "emotional");
+                    MessageBox.Show($"Сработала эмоциональная реакция: {reaction.Name}\nОтвет: {randomResponse}", 
+                        "Тест эмоций", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+                else
+                {
+                    MessageBox.Show("Эмоциональная реакция не найдена. Проверьте настройки эмоциональных реакций.", 
+                        "Тест эмоций", MessageBoxButton.OK, MessageBoxImage.Warning);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка тестирования эмоциональных реакций: {ex.Message}", 
+                               "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private async void TestStreamEventsButton_Click(object sender, RoutedEventArgs e)
+        {
+            // Тестируем события стрима (подписка)
+            var subscriptionEvent = _streamEventsService.GetEventForSubscription(EventType.Subscription, 1);
+            
+            if (subscriptionEvent != null && subscriptionEvent.Responses.Any())
+            {
+                var randomResponse = subscriptionEvent.Responses[_random.Next(subscriptionEvent.Responses.Count)];
+                // Заменяем {username} на тестовое имя
+                randomResponse = randomResponse.Replace("{username}", "ТестовыйПодписчик");
+                await _speechService.SpeakAsync(randomResponse, "Стример", "subscription");
+                MessageBox.Show($"Сработало событие стрима: {subscriptionEvent.Name}\nОтвет: {randomResponse}", 
+                    "Тест событий", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            else
+            {
+                MessageBox.Show("Событие стрима не найдено. Проверьте настройки событий стрима.", 
+                    "Тест событий", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
+
+        private async void TestDonationButton_Click(object sender, RoutedEventArgs e)
+        {
+            // Тестируем события стрима (донат)
+            var donationEvent = _streamEventsService.GetEventForDonation(10.0m, "ТестовыйДонатер");
+            
+            if (donationEvent != null && donationEvent.Responses.Any())
+            {
+                var randomResponse = donationEvent.Responses[_random.Next(donationEvent.Responses.Count)];
+                // Заменяем {username} на тестовое имя
+                randomResponse = randomResponse.Replace("{username}", "ТестовыйДонатер");
+                await _speechService.SpeakAsync(randomResponse, "Стример", "donation");
+                MessageBox.Show($"Сработало событие доната: {donationEvent.Name}\nОтвет: {randomResponse}", 
+                    "Тест доната", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            else
+            {
+                MessageBox.Show("Событие доната не найдено. Проверьте настройки событий стрима.", 
+                    "Тест доната", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
+
         private void RemoveResponseButton_Click(object sender, RoutedEventArgs e)
         {
             if (QuickResponsesListBox.SelectedItem is QuickResponse selectedResponse)
@@ -716,6 +896,34 @@ namespace SilentCaster
                 var index = _responses.IndexOf(selectedResponse);
                 _responseService.RemoveResponse(index);
                 LoadResponses();
+            }
+        }
+
+        private void OBSIntegrationButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var obsWindow = new OBSIntegrationWindow(_obsService, _subtitlesService);
+                obsWindow.Owner = this;
+                obsWindow.Show();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка открытия окна OBS интеграции: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void SubtitlesSettingsButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var obsWindow = new OBSIntegrationWindow(_obsService, _subtitlesService);
+                obsWindow.Owner = this;
+                obsWindow.Show();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка открытия настроек субтитров: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -732,6 +940,8 @@ namespace SilentCaster
             
             // Освобождаем ресурсы
             _speechService?.Dispose();
+            _obsService?.Dispose();
+            _subtitlesService?.Dispose();
             
             base.OnClosed(e);
         }

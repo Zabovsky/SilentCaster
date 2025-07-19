@@ -1,0 +1,262 @@
+<Window x:Class="SilentCaster.OBSIntegrationWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="OBS интеграция и субтитры" Height="800" Width="900"
+        WindowStartupLocation="CenterOwner"
+        Background="#FF1E1E1E" Foreground="White"
+        WindowStyle="None" AllowsTransparency="True"
+        ResizeMode="CanResize">
+    
+    <Window.Resources>
+        <SolidColorBrush x:Key="CardBrush" Color="#FF2D2D30"/>
+        <SolidColorBrush x:Key="BorderBrush" Color="#FF3F3F46"/>
+        <SolidColorBrush x:Key="AccentBrush" Color="#FF007ACC"/>
+        <SolidColorBrush x:Key="SuccessBrush" Color="#FF28A745"/>
+        <SolidColorBrush x:Key="WarningBrush" Color="#FFFFC107"/>
+        <SolidColorBrush x:Key="ErrorBrush" Color="#FFDC3545"/>
+        
+        <Style x:Key="ModernButton" TargetType="Button">
+            <Setter Property="Background" Value="#FF3F3F46"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="12,6"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" 
+                                CornerRadius="4" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#FF007ACC"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="Background" Value="#FF005A9E"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+    
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="40"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="80"/>
+        </Grid.RowDefinitions>
+        
+        <!-- Заголовок окна -->
+        <Border Grid.Row="0" Background="#FF007ACC" MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="12,0">
+                    <TextBlock Text="🎬" FontSize="18" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <TextBlock Text="OBS интеграция и субтитры" 
+                               VerticalAlignment="Center" FontWeight="Bold" FontSize="16"/>
+                </StackPanel>
+                
+                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <Button Content="🗕" Click="MinimizeButton_Click" 
+                            Style="{StaticResource ModernButton}" Width="40" Height="40"/>
+                    <Button Content="🗖" Click="MaximizeButton_Click" 
+                            Style="{StaticResource ModernButton}" Width="40" Height="40"/>
+                    <Button Content="✕" Click="CloseButton_Click" 
+                            Style="{StaticResource ModernButton}" Width="40" Height="40"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+        
+        <!-- Основное содержимое -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="16,16,16,24">
+                
+                <!-- OBS интеграция -->
+                <Border Background="{StaticResource CardBrush}" CornerRadius="8" Padding="16" Margin="0,0,0,16">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
+                            <TextBlock Text="🎬" FontSize="16" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            <TextBlock Text="OBS интеграция" FontWeight="Bold" FontSize="14" VerticalAlignment="Center"/>
+                        </StackPanel>
+                        
+                        <CheckBox x:Name="OBSEnabledCheckBox" Content="Включить интеграцию с OBS Studio" 
+                                  Margin="0,0,0,12" Foreground="White"/>
+                        
+                        <Border Background="#FF3F3F46" CornerRadius="6" Padding="16" Margin="0,0,0,16">
+                            <StackPanel>
+                                <TextBlock Text="Настройки подключения" FontWeight="Bold" Margin="0,0,0,12" Foreground="White"/>
+                                
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="URL:" VerticalAlignment="Center" 
+                                               Margin="0,0,8,0" Foreground="White"/>
+                                    <TextBox Grid.Column="1" x:Name="OBSUrlTextBox" Text="ws://localhost:4444" 
+                                             Background="#FF2D2D30" BorderBrush="{StaticResource AccentBrush}" 
+                                             Foreground="White" Padding="8,6"/>
+                                </Grid>
+                                
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="Пароль:" VerticalAlignment="Center" 
+                                               Margin="0,0,8,0" Foreground="White"/>
+                                    <PasswordBox Grid.Column="1" x:Name="OBSPasswordBox" 
+                                                 Background="#FF2D2D30" BorderBrush="{StaticResource AccentBrush}" 
+                                                 Foreground="White" Padding="8,6"/>
+                                </Grid>
+                                
+                                <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                    <Button x:Name="ConnectOBSButton" Content="🔗 Подключиться" 
+                                            Click="ConnectOBSButton_Click" Style="{StaticResource ModernButton}" 
+                                            Width="120" Height="32" Margin="0,0,8,0"/>
+                                    <Button x:Name="DisconnectOBSButton" Content="❌ Отключиться" 
+                                            Click="DisconnectOBSButton_Click" Style="{StaticResource ModernButton}" 
+                                            Width="120" Height="32" Margin="0,0,8,0"/>
+                                    <Button x:Name="TestOBSButton" Content="🧪 Тест" 
+                                            Click="TestOBSButton_Click" Style="{StaticResource ModernButton}" 
+                                            Width="80" Height="32"/>
+                                </StackPanel>
+                                
+                                <TextBlock x:Name="OBSStatusTextBlock" Text="Не подключено" 
+                                           Margin="0,8,0,0" Foreground="#FFCCCCCC" FontSize="11"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </Border>
+                
+                <!-- Субтитры -->
+                <Border Background="{StaticResource CardBrush}" CornerRadius="8" Padding="16" Margin="0,0,0,16">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
+                            <TextBlock Text="📝" FontSize="16" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            <TextBlock Text="Субтитры" FontWeight="Bold" FontSize="14" VerticalAlignment="Center"/>
+                        </StackPanel>
+                        
+                        <CheckBox x:Name="SubtitlesEnabledCheckBox" Content="Включить субтитры" 
+                                  Margin="0,0,0,12" Foreground="White"/>
+                        
+                        <Border Background="#FF3F3F46" CornerRadius="6" Padding="16" Margin="0,0,0,16">
+                            <StackPanel>
+                                <TextBlock Text="Настройки субтитров" FontWeight="Bold" Margin="0,0,0,12" Foreground="White"/>
+                                
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="Источник в OBS:" VerticalAlignment="Center" 
+                                               Margin="0,0,8,0" Foreground="White"/>
+                                    <TextBox Grid.Column="1" x:Name="SubtitleSourceTextBox" Text="Subtitles" 
+                                             Background="#FF2D2D30" BorderBrush="{StaticResource AccentBrush}" 
+                                             Foreground="White" Padding="8,6"/>
+                                </Grid>
+                                
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="Длительность (сек):" VerticalAlignment="Center" 
+                                               Margin="0,0,8,0" Foreground="White"/>
+                                    <Slider Grid.Column="1" x:Name="SubtitleDurationSlider" Minimum="1" Maximum="30" 
+                                            Value="5" TickFrequency="1" IsSnapToTickEnabled="True" 
+                                            Foreground="{StaticResource AccentBrush}"/>
+                                </Grid>
+                                <TextBlock x:Name="SubtitleDurationText" Text="5 секунд" 
+                                           HorizontalAlignment="Center" Margin="0,0,0,8" Foreground="White"/>
+                                
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="Макс. длина:" VerticalAlignment="Center" 
+                                               Margin="0,0,8,0" Foreground="White"/>
+                                    <Slider Grid.Column="1" x:Name="SubtitleLengthSlider" Minimum="10" Maximum="500" 
+                                            Value="100" TickFrequency="10" IsSnapToTickEnabled="True" 
+                                            Foreground="{StaticResource AccentBrush}"/>
+                                </Grid>
+                                <TextBlock x:Name="SubtitleLengthText" Text="100 символов" 
+                                           HorizontalAlignment="Center" Margin="0,0,0,8" Foreground="White"/>
+                                
+                                <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                    <Button x:Name="TestSubtitleButton" Content="🧪 Тест субтитров" 
+                                            Click="TestSubtitleButton_Click" Style="{StaticResource ModernButton}" 
+                                            Width="120" Height="32" Margin="0,0,8,0"/>
+                                    <Button x:Name="ClearSubtitleButton" Content="🗑️ Очистить" 
+                                            Click="ClearSubtitleButton_Click" Style="{StaticResource ModernButton}" 
+                                            Width="100" Height="32"/>
+                                </StackPanel>
+                                
+                                <TextBlock x:Name="CurrentSubtitleText" Text="Текущие субтитры: нет" 
+                                           Margin="0,8,0,0" Foreground="#FFCCCCCC" FontSize="11"/>
+                            </StackPanel>
+                        </Border>
+                        
+                        <!-- Типы субтитров -->
+                        <Border Background="#FF3F3F46" CornerRadius="6" Padding="16" Margin="0,0,0,16">
+                            <StackPanel>
+                                <TextBlock Text="Типы субтитров" FontWeight="Bold" Margin="0,0,0,12" Foreground="White"/>
+                                
+                                <CheckBox x:Name="ChatSubtitlesCheckBox" Content="Субтитры для сообщений чата" 
+                                          Margin="0,0,0,8" Foreground="White" IsChecked="True"/>
+                                
+                                <CheckBox x:Name="EmotionalSubtitlesCheckBox" Content="Субтитры для эмоциональных реакций" 
+                                          Margin="0,0,0,8" Foreground="White" IsChecked="True"/>
+                                
+                                <CheckBox x:Name="EventSubtitlesCheckBox" Content="Субтитры для событий стрима" 
+                                          Margin="0,0,0,8" Foreground="White" IsChecked="True"/>
+                                
+                                <CheckBox x:Name="QuickResponseSubtitlesCheckBox" Content="Субтитры для быстрых ответов" 
+                                          Margin="0,0,0,8" Foreground="White" IsChecked="True"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </Border>
+                
+                <!-- Инструкции -->
+                <Border Background="#FF3F3F46" CornerRadius="6" Padding="16">
+                    <StackPanel>
+                        <TextBlock Text="📋 Инструкции" FontWeight="Bold" Margin="0,0,0,12" Foreground="White"/>
+                        
+                        <TextBlock Text="1. Установите OBS WebSocket плагин в OBS Studio" 
+                                   FontSize="11" Margin="0,0,0,4" Foreground="White"/>
+                        <TextBlock Text="2. Создайте текстовый источник 'Subtitles' в OBS" 
+                                   FontSize="11" Margin="0,0,0,4" Foreground="White"/>
+                        <TextBlock Text="3. Настройте подключение и включите интеграцию" 
+                                   FontSize="11" Margin="0,0,0,4" Foreground="White"/>
+                        <TextBlock Text="4. Субтитры будут автоматически отображаться в OBS" 
+                                   FontSize="11" Margin="0,0,0,4" Foreground="White"/>
+                        
+                        <TextBlock Text="💡 Подсказка: Субтитры можно отключить в любой момент" 
+                                   FontSize="10" Opacity="0.7" Margin="0,8,0,0" Foreground="White"/>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+        
+        <!-- Кнопки внизу -->
+        <Border Grid.Row="2" Background="{StaticResource CardBrush}" Padding="16" Margin="0,8,0,0">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                <Button x:Name="SaveSettingsButton" Content="💾 Сохранить настройки" 
+                        Width="180" Height="40" Margin="8" Click="SaveSettingsButton_Click" 
+                        Style="{StaticResource ModernButton}" Background="{StaticResource SuccessBrush}"/>
+                <Button x:Name="CloseButton" Content="✕ Закрыть" Width="120" Height="40" Margin="8" 
+                        Click="CloseButton_Click" Style="{StaticResource ModernButton}"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window> 
