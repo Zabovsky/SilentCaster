@@ -32,7 +32,7 @@
 ### 1. **Установка**
 ```bash
 # Клонирование репозитория
-git clone https://github.com/your-username/SilentCaster.git
+git clone https://github.com/Zabovsky/SilentCaster.git
 cd SilentCaster
 
 # Сборка проекта
