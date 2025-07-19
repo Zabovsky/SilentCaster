@@ -1,0 +1,297 @@
+<Window x:Class="SilentCaster.VoiceProfilesWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Управление голосовыми профилями" Height="700" Width="1000"
+        WindowStyle="None" AllowsTransparency="True" 
+        Background="#FF1E1E1E" Foreground="White" ResizeMode="CanResize"
+        WindowStartupLocation="CenterScreen">
+    
+    <Window.Resources>
+        <SolidColorBrush x:Key="CardBrush" Color="#FF2D2D30"/>
+        <SolidColorBrush x:Key="BorderBrush" Color="#FF3F3F46"/>
+        <SolidColorBrush x:Key="AccentBrush" Color="#FF007ACC"/>
+        <SolidColorBrush x:Key="SuccessBrush" Color="#FF28A745"/>
+        <SolidColorBrush x:Key="WarningBrush" Color="#FFFFC107"/>
+        <SolidColorBrush x:Key="ErrorBrush" Color="#FFDC3545"/>
+    </Window.Resources>
+    
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="40"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        
+        <!-- Заголовок окна -->
+        <Border Grid.Row="0" Background="#FF007ACC" MouseLeftButtonDown="OnTitleBarMouseDown">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="12,0">
+                    <TextBlock Text="🎤" FontSize="18" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <TextBlock Text="Управление голосовыми профилями" 
+                               VerticalAlignment="Center" FontWeight="Bold" FontSize="16"/>
+                </StackPanel>
+                
+                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <Button x:Name="MinimizeButton" Content="🗕" 
+                            Style="{StaticResource ModernButton}" Width="40" Height="40"
+                            Click="OnMinimizeClick"/>
+                    <Button x:Name="CloseButton" Content="✕" 
+                            Style="{StaticResource ModernButton}" Width="40" Height="40"
+                            Click="OnCloseClick"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+        
+        <!-- Основное содержимое -->
+        <Grid Grid.Row="1" Margin="16,16,16,80">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="300"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            
+            <!-- Левая панель - список профилей -->
+            <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto" Margin="0,0,16,0">
+                <StackPanel>
+                
+                <!-- Информация о профилях -->
+                <Border Background="{StaticResource CardBrush}" CornerRadius="8" Padding="16" Margin="0,0,0,16">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                            <TextBlock Text="📊" FontSize="16" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            <TextBlock Text="Статистика профилей" FontWeight="Bold" FontSize="14" VerticalAlignment="Center"/>
+                        </StackPanel>
+                        
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            
+                            <StackPanel Grid.Column="0" Margin="0,0,8,0">
+                                <TextBlock Text="Всего профилей:" Opacity="0.8" FontSize="12"/>
+                                <TextBlock x:Name="TotalProfilesTextBlock" Text="0" FontSize="18" FontWeight="Bold" Foreground="{StaticResource AccentBrush}"/>
+                            </StackPanel>
+                            
+                            <StackPanel Grid.Column="1" Margin="8,0,0,0">
+                                <TextBlock Text="Активных:" Opacity="0.8" FontSize="12"/>
+                                <TextBlock x:Name="ActiveProfilesTextBlock" Text="0" FontSize="18" FontWeight="Bold" Foreground="{StaticResource SuccessBrush}"/>
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+                
+                <!-- Список профилей -->
+                <Border Background="{StaticResource CardBrush}" CornerRadius="8" Padding="16">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                            <TextBlock Text="🎤" FontSize="16" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            <TextBlock Text="Голосовые профили" FontWeight="Bold" FontSize="14" VerticalAlignment="Center"/>
+                        </StackPanel>
+                        
+                        <ListBox x:Name="VoiceProfilesListBox" Height="400" 
+                                 Background="Transparent" BorderThickness="1" BorderBrush="{StaticResource BorderBrush}"
+                                 SelectionChanged="VoiceProfilesListBox_SelectionChanged" Margin="0,0,0,12">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Padding="12,8" Margin="2" Background="#FF3F3F46" CornerRadius="6">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            
+                                            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                                <CheckBox IsChecked="{Binding IsEnabled}" Margin="0,0,8,0"/>
+                                                <TextBlock Text="🔊" FontSize="14" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                            
+                                            <StackPanel Grid.Column="1" Margin="8,0">
+                                                <TextBlock Text="{Binding Name}" FontWeight="Bold" Foreground="White"/>
+                                                <TextBlock Text="{Binding VoiceName}" FontSize="11" Foreground="#FFCCCCCC"/>
+                                                <TextBlock Text="{Binding Description}" FontSize="10" Foreground="#FF999999" 
+                                                           TextTrimming="CharacterEllipsis"/>
+                                            </StackPanel>
+                                            
+                                            <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                                <TextBlock Text="Приоритет:" FontSize="10" Foreground="#FF999999" Margin="0,0,4,0"/>
+                                                <TextBlock Text="{Binding Priority}" FontSize="12" Foreground="#FFCCCCCC" Margin="0,0,8,0"/>
+                                                <TextBlock Text="Шанс:" FontSize="10" Foreground="#FF999999" Margin="0,0,4,0"/>
+                                                <TextBlock Text="{Binding UsageChance}" FontSize="12" Foreground="#FFCCCCCC"/>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                        
+                        <Border Background="#FF3F3F46" CornerRadius="6" Padding="12" Margin="0,8,0,0">
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                <Button Content="➕ Добавить новый профиль" Click="AddProfileButton_Click" 
+                                        Style="{StaticResource ModernButton}" Width="150" Height="36" 
+                                        Background="{StaticResource SuccessBrush}" FontWeight="Bold"/>
+                                <Button Content="🗑️ Удалить" Click="RemoveProfileButton_Click" 
+                                        Style="{StaticResource ModernButton}" Width="100" Height="36" 
+                                        Background="{StaticResource ErrorBrush}" Margin="12,0,0,0"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </Border>
+                </StackPanel>
+            </ScrollViewer>
+            
+            <!-- Правая панель - настройки профиля -->
+            <Border Grid.Column="1" x:Name="ProfileSettingsBorder" Background="{StaticResource CardBrush}" 
+                    CornerRadius="8" Padding="16" Visibility="Collapsed">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel>
+                        <!-- Заголовок настроек -->
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
+                            <TextBlock x:Name="ProfileSettingsIcon" Text="⚙️" FontSize="18" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            <TextBlock x:Name="ProfileSettingsTitle" Text="Настройки профиля" 
+                                       FontWeight="Bold" FontSize="16" VerticalAlignment="Center"/>
+                        </StackPanel>
+                        
+                        <!-- Основные настройки -->
+                        <Border Background="#FF3F3F46" CornerRadius="6" Padding="16" Margin="0,0,0,16">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                                    <TextBlock Text="📝" FontSize="16" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <TextBlock Text="Основные настройки" FontWeight="Bold" FontSize="14" VerticalAlignment="Center"/>
+                                </StackPanel>
+                                
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+                                    
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Название:" Margin="0,0,8,8" VerticalAlignment="Center" FontWeight="Bold"/>
+                                    <TextBox Grid.Row="0" Grid.Column="1" x:Name="ProfileNameTextBox" Height="36" 
+                                             Background="#FF2D2D30" BorderBrush="{StaticResource AccentBrush}" BorderThickness="2"
+                                             Foreground="White" FontSize="14" FontWeight="Bold" Margin="0,0,0,8"
+                                             VerticalContentAlignment="Center" Padding="8,0"/>
+                                    
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Голос:" Margin="0,0,8,8" VerticalAlignment="Center"/>
+                                    <ComboBox Grid.Row="1" Grid.Column="1" x:Name="VoiceComboBox" Height="32" 
+                                              Background="#FF2D2D30" BorderBrush="{StaticResource BorderBrush}" Margin="0,0,0,8"/>
+                                    
+                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Описание:" Margin="0,0,8,8" VerticalAlignment="Top"/>
+                                    <TextBox Grid.Row="2" Grid.Column="1" x:Name="DescriptionTextBox" Height="60" 
+                                             Background="#FF2D2D30" BorderBrush="{StaticResource BorderBrush}" Margin="0,0,0,8"
+                                             AcceptsReturn="True" TextWrapping="Wrap"/>
+                                    
+                                    <TextBlock Grid.Row="3" Grid.Column="0" Text="Скорость:" Margin="0,0,8,8" VerticalAlignment="Center"/>
+                                    <StackPanel Grid.Row="3" Grid.Column="1" Margin="0,0,0,8">
+                                        <Slider x:Name="RateSlider" Minimum="-10" Maximum="10" Value="0" 
+                                                TickFrequency="1" IsSnapToTickEnabled="True" 
+                                                ValueChanged="RateSlider_ValueChanged" Margin="0,0,0,4"/>
+                                        <TextBlock x:Name="RateTextBlock" Text="0" HorizontalAlignment="Center" 
+                                                   Foreground="#FFCCCCCC" FontSize="12"/>
+                                    </StackPanel>
+                                    
+                                    <TextBlock Grid.Row="4" Grid.Column="0" Text="Громкость:" Margin="0,0,8,8" VerticalAlignment="Center"/>
+                                    <StackPanel Grid.Row="4" Grid.Column="1" Margin="0,0,0,8">
+                                        <Slider x:Name="VolumeSlider" Minimum="0" Maximum="100" Value="100" 
+                                                TickFrequency="10" IsSnapToTickEnabled="True" 
+                                                ValueChanged="VolumeSlider_ValueChanged" Margin="0,0,0,4"/>
+                                        <TextBlock x:Name="VolumeTextBlock" Text="100%" HorizontalAlignment="Center" 
+                                                   Foreground="#FFCCCCCC" FontSize="12"/>
+                                    </StackPanel>
+                                    
+                                    <CheckBox Grid.Row="5" Grid.Column="1" x:Name="IsEnabledCheckBox" Content="Профиль активен" 
+                                              Foreground="#FFFFFFFF" Margin="0,8,0,0"/>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+                        
+                        <!-- Настройки взаимодействия -->
+                        <Border Background="#FF3F3F46" CornerRadius="6" Padding="16" Margin="0,0,0,16">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                                    <TextBlock Text="🎯" FontSize="16" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <TextBlock Text="Настройки взаимодействия" FontWeight="Bold" FontSize="14" VerticalAlignment="Center"/>
+                                </StackPanel>
+                                
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    
+                                    <StackPanel Grid.Column="0" Margin="0,0,8,0">
+                                        <CheckBox x:Name="UseForChatMessagesCheckBox" Content="💬 Сообщения чата" 
+                                                  Foreground="#FFFFFFFF" Margin="0,0,0,4"/>
+                                        <CheckBox x:Name="UseForQuickResponsesCheckBox" Content="⚡ Быстрые ответы" 
+                                                  Foreground="#FFFFFFFF" Margin="0,0,0,4"/>
+                                        <CheckBox x:Name="UseForManualMessagesCheckBox" Content="✍️ Ручные сообщения" 
+                                                  Foreground="#FFFFFFFF" Margin="0,0,0,8"/>
+                                    </StackPanel>
+                                    
+                                    <StackPanel Grid.Column="1" Margin="8,0,0,0">
+                                        <TextBlock Text="Приоритет (1-10):" Foreground="#FFFFFFFF" Margin="0,0,0,4"/>
+                                        <Slider x:Name="PrioritySlider" Minimum="1" Maximum="10" Value="1" 
+                                                TickFrequency="1" IsSnapToTickEnabled="True" 
+                                                ValueChanged="PrioritySlider_ValueChanged" Margin="0,0,0,4"/>
+                                        <TextBlock x:Name="PriorityTextBlock" Text="1" HorizontalAlignment="Center" 
+                                                   Foreground="#FFCCCCCC" FontSize="12" Margin="0,0,0,8"/>
+                                        
+                                        <TextBlock Text="Шанс использования (%):" Foreground="#FFFFFFFF" Margin="0,0,0,4"/>
+                                        <Slider x:Name="UsageChanceSlider" Minimum="1" Maximum="100" Value="100" 
+                                                TickFrequency="10" IsSnapToTickEnabled="True" 
+                                                ValueChanged="UsageChanceSlider_ValueChanged" Margin="0,0,0,4"/>
+                                        <TextBlock x:Name="UsageChanceTextBlock" Text="100%" HorizontalAlignment="Center" 
+                                                   Foreground="#FFCCCCCC" FontSize="12"/>
+                                    </StackPanel>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+                        
+                        <!-- Кнопки действий -->
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                            <Button Content="🎵 Тест голоса" Click="TestVoiceButton_Click" 
+                                    Style="{StaticResource ModernButton}" Width="120" Height="32" Margin="0,0,8,0"/>
+                            <Button Content="💾 Сохранить" Click="SaveProfileButton_Click" 
+                                    Style="{StaticResource ModernButton}" Width="120" Height="32" Background="{StaticResource SuccessBrush}"/>
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </Border>
+            
+            <!-- Сообщение о выборе профиля -->
+            <Border Grid.Column="1" x:Name="NoProfileBorder" Background="{StaticResource CardBrush}" 
+                    CornerRadius="8" Padding="32" Visibility="Visible">
+                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <TextBlock Text="🎤" FontSize="48" HorizontalAlignment="Center" Margin="0,0,0,16"/>
+                    <TextBlock Text="Выберите профиль для настройки" FontSize="16" FontWeight="Bold" 
+                               HorizontalAlignment="Center" Margin="0,0,0,8"/>
+                    <TextBlock Text="Нажмите на профиль в списке слева, чтобы настроить его параметры" 
+                               HorizontalAlignment="Center" Opacity="0.7" TextWrapping="Wrap" MaxWidth="300"/>
+                </StackPanel>
+            </Border>
+        </Grid>
+        
+        <!-- Кнопки управления окном -->
+        <Border Grid.Row="1" Background="#FF1E1E1E" BorderBrush="#FF3F3F46" BorderThickness="0,1,0,0" 
+                VerticalAlignment="Bottom" Height="60" Panel.ZIndex="1">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="16,0">
+                <Button Content="💾 Сохранить все" Click="SaveAllButton_Click" 
+                        Style="{StaticResource ModernButton}" Width="120" Height="36" Background="{StaticResource SuccessBrush}"/>
+                <Button Content="❌ Отмена" Click="CancelButton_Click" 
+                        Style="{StaticResource ModernButton}" Width="100" Height="36" Margin="8,0,0,0"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window> 
