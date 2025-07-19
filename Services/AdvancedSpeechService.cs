@@ -16,12 +16,14 @@ namespace SilentCaster.Services
         private readonly SpeechSynthesizer _synthesizer;
         private readonly AudioDeviceService? _audioDeviceService;
         private readonly Random _random;
+        private VoiceSettings _voiceSettings;
 
         public AdvancedSpeechService(AudioDeviceService? audioDeviceService = null)
         {
             _synthesizer = new SpeechSynthesizer();
             _audioDeviceService = audioDeviceService;
             _random = new Random();
+            _voiceSettings = new VoiceSettings();
         }
 
         public async Task SpeakAsync(string text, string? username = null, string messageType = "chat")
@@ -35,6 +37,17 @@ namespace SilentCaster.Services
             {
                 try
                 {
+                    // Выбираем профиль голоса в зависимости от настроек
+                    var selectedProfile = SelectVoiceProfile(messageType);
+                    
+                    // Применяем настройки выбранного профиля
+                    if (selectedProfile != null)
+                    {
+                        SelectVoice(selectedProfile.VoiceName);
+                        SetRate((int)selectedProfile.Rate);
+                        SetVolume((int)selectedProfile.Volume);
+                    }
+                    
                     await SpeakWithSelectedDeviceAsync(processedText);
                 }
                 catch (Exception ex)
@@ -182,6 +195,8 @@ namespace SilentCaster.Services
 
         public void UpdateSettings(VoiceSettings settings)
         {
+            _voiceSettings = settings;
+            
             // Применяем настройки голоса
             if (!string.IsNullOrEmpty(settings.SelectedVoice))
             {
@@ -189,6 +204,44 @@ namespace SilentCaster.Services
             }
             SetRate((int)settings.Rate);
             SetVolume((int)settings.Volume);
+        }
+
+        private VoiceProfile? SelectVoiceProfile(string messageType)
+        {
+            // Если множественные голоса отключены, используем базовые настройки
+            if (!_voiceSettings.UseMultipleVoices)
+            {
+                return null;
+            }
+
+            // Фильтруем активные профили по типу сообщения
+            var availableProfiles = _voiceSettings.VoiceProfiles
+                .Where(p => p.IsEnabled)
+                .Where(p => 
+                    (messageType == "chat" && p.UseForChatMessages) ||
+                    (messageType == "quick" && p.UseForQuickResponses) ||
+                    (messageType == "manual" && p.UseForManualMessages))
+                .ToList();
+
+            if (!availableProfiles.Any())
+            {
+                return null;
+            }
+
+            // Сортируем по приоритету (высокий приоритет = низкий номер)
+            availableProfiles = availableProfiles.OrderBy(p => p.Priority).ToList();
+
+            // Выбираем профиль с учетом шанса использования
+            foreach (var profile in availableProfiles)
+            {
+                if (_random.NextDouble() * 100 <= profile.UsageChance)
+                {
+                    return profile;
+                }
+            }
+
+            // Если ни один профиль не выбран по шансу, возвращаем первый с наивысшим приоритетом
+            return availableProfiles.FirstOrDefault();
         }
 
         public VoiceProfile CreateVoiceProfile(string name, string voiceName, double rate = 0, double volume = 100, string description = "")

@@ -36,6 +36,34 @@ namespace SilentCaster
             _chatMessages = new ObservableCollection<ChatMessage>();
             _responses = new ObservableCollection<QuickResponse>();
             _voiceSettings = new VoiceSettings();
+            
+            // Добавляем профили по умолчанию, если их нет
+            if (_voiceSettings.VoiceProfiles.Count == 0)
+            {
+                _voiceSettings.VoiceProfiles.Add(new VoiceProfile
+                {
+                    Name = "Основной голос",
+                    VoiceName = "Microsoft David Desktop",
+                    Rate = 0.0,
+                    Volume = 100.0,
+                    IsEnabled = true,
+                    Description = "Основной голос для озвучивания",
+                    Priority = 1,
+                    UsageChance = 100.0
+                });
+                
+                _voiceSettings.VoiceProfiles.Add(new VoiceProfile
+                {
+                    Name = "Альтернативный голос",
+                    VoiceName = "Microsoft Zira Desktop",
+                    Rate = 0.0,
+                    Volume = 100.0,
+                    IsEnabled = true,
+                    Description = "Альтернативный голос для разнообразия",
+                    Priority = 2,
+                    UsageChance = 50.0
+                });
+            }
             _appSettings = _settingsService.LoadSettings();
             
             ChatMessagesListBox.ItemsSource = _chatMessages;
@@ -118,7 +146,13 @@ namespace SilentCaster
             // Загружаем голосовые настройки
             if (_appSettings.VoiceSettings != null)
             {
-                _voiceSettings = _appSettings.VoiceSettings;
+                // Копируем настройки, чтобы не нарушить привязку данных
+                _voiceSettings.UseMultipleVoices = _appSettings.VoiceSettings.UseMultipleVoices;
+                _voiceSettings.VoiceProfiles.Clear();
+                foreach (var profile in _appSettings.VoiceSettings.VoiceProfiles)
+                {
+                    _voiceSettings.VoiceProfiles.Add(profile);
+                }
             }
             else
             {
@@ -144,6 +178,12 @@ namespace SilentCaster
                 if (_speechService != null)
                 {
                     _speechService.UpdateSettings(_voiceSettings);
+                }
+                
+                // Обновляем привязку данных для списка активных профилей
+                if (ActiveProfilesListBox != null)
+                {
+                    ActiveProfilesListBox.Items.Refresh();
                 }
             }
             catch (Exception ex)
@@ -371,7 +411,6 @@ namespace SilentCaster
         private void UseMultipleVoicesCheckBox_Unchecked(object sender, RoutedEventArgs e)
         {
             _voiceSettings.UseMultipleVoices = false;
-            _appSettings.UseMultipleVoices = false;
             UpdateVoiceSettings();
             SaveAppSettings();
         }
