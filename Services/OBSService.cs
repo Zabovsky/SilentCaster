@@ -21,6 +21,7 @@ namespace SilentCaster.Services
 
         public event EventHandler<string>? ConnectionStatusChanged;
         public event EventHandler<string>? ErrorOccurred;
+        public event EventHandler<string>? VersionDetected;
 
         public bool IsEnabled { get; set; } = false;
         public bool IsConnected => _isConnected;
@@ -61,6 +62,13 @@ namespace SilentCaster.Services
                 
                 // Запускаем прослушивание сообщений
                 _ = Task.Run(ListenForMessagesAsync);
+                
+                // Получить версию OBS
+                _ = Task.Run(async () => {
+                    var version = await GetOBSVersionAsync();
+                    if (!string.IsNullOrEmpty(version))
+                        VersionDetected?.Invoke(this, version);
+                });
                 
                 return true;
             }
@@ -310,6 +318,24 @@ namespace SilentCaster.Services
             {
                 _isConnected = false;
                 ConnectionStatusChanged?.Invoke(this, "Соединение с OBS потеряно");
+            }
+        }
+
+        public async Task<string?> GetOBSVersionAsync()
+        {
+            if (!IsEnabled || !_isConnected) return null;
+            try
+            {
+                var request = new { requestType = "GetVersion" };
+                var response = await SendRequestAsync(JsonConvert.SerializeObject(request));
+                if (response == null) return null;
+                var responseObj = JObject.Parse(response);
+                return responseObj["obsVersion"]?.Value<string>() ?? responseObj["version"]?.Value<string>();
+            }
+            catch (Exception ex)
+            {
+                ErrorOccurred?.Invoke(this, $"Ошибка получения версии OBS: {ex.Message}");
+                return null;
             }
         }
 

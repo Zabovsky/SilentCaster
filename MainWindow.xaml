@@ -317,6 +317,8 @@
                                                   Unchecked="EnableChatVoiceCheckBox_Unchecked"
                                                   Foreground="{StaticResource ForegroundBrush}"/>
                                         
+                                        <CheckBox x:Name="EventSoundsEnabledCheckBox" Content="Включить звуковые реакции на события стрима" Margin="0,0,0,8" Foreground="{StaticResource ForegroundBrush}" ToolTip="Воспроизводить звуки при событиях стрима (подписка, донат и т.д.)"/>
+                                        
                                         <TextBlock Text="Ограничения по ролям (можно комбинировать):" 
                                                    FontWeight="Bold" Margin="0,8,0,4" 
                                                    Foreground="{StaticResource ForegroundBrush}"/>
@@ -409,7 +411,7 @@
                                     <Button Content="🚫 Запрещенные слова" Click="OpenForbiddenWordsButton_Click" 
                                             Style="{StaticResource ModernButton}" Width="200" Height="32"/>
                                     <Button Content="😊 Эмоциональные реакции" Click="OpenEmotionalReactionsButton_Click" 
-                                            Style="{StaticResource ModernButton}" Width="200" Height="32" Margin="8,0,0,0"/>
+                                            Style="{StaticResource ModernButton}" Width="200" Height="32" Margin="8,0,0,0" IsEnabled="False" Visibility="Collapsed"/>
                                 </StackPanel>
                                 
                                 <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
@@ -440,7 +442,46 @@
                             </StackPanel>
                         </Border>
                         
-
+                        <!-- Найти секцию Twitch авторизации и перестроить порядок -->
+                        <Border Background="{StaticResource CardBrush}" CornerRadius="8" Padding="16" Margin="0,0,0,16">
+                            <StackPanel>
+                                <TextBlock Text="Авторизация через Twitch" FontWeight="Bold" FontSize="14" Margin="0,0,0,8"/>
+                                <CheckBox x:Name="TwitchAdvancedModeCheckBox" Content="Расширенный режим (свой Client ID)" Margin="0,8,0,0" Checked="TwitchAdvancedModeCheckBox_Checked" Unchecked="TwitchAdvancedModeCheckBox_Unchecked"/>
+                                <StackPanel x:Name="TwitchAdvancedPanel" Visibility="Collapsed" Margin="0,8,0,0">
+                                    <TextBlock Text="Client ID:"/>
+                                    <TextBox x:Name="TwitchClientIdTextBox" Width="320" Margin="0,0,0,8" ToolTip="Client ID вашего приложения Twitch"/>
+                                    <TextBlock Text="Client Secret:"/>
+                                    <PasswordBox x:Name="TwitchClientSecretBox" Width="320" Margin="0,0,0,8" ToolTip="Client Secret вашего приложения Twitch"/>
+                                </StackPanel>
+                                <TextBlock Text="Для интеграции с Twitch требуется авторизация. Получите данные на официальном сайте Twitch Developers." Margin="0,8,0,8"/>
+                                <TextBlock>
+                                    <Run Text="1. Зарегистрируйте приложение на "/>
+                                    <Hyperlink NavigateUri="https://dev.twitch.tv/console/apps/create" RequestNavigate="Hyperlink_RequestNavigate">https://dev.twitch.tv/console/apps/create</Hyperlink>
+                                </TextBlock>
+                                <TextBlock>
+                                    <Run Text="2. После создания приложения скопируйте " />
+                                    <Run Text="Client ID" FontWeight="Bold"/>
+                                    <Run Text=" и " />
+                                    <Run Text="Client Secret" FontWeight="Bold"/>
+                                    <Run Text=" из консоли Twitch."/>
+                                </TextBlock>
+                                <TextBlock Text="Client ID и Client Secret не сохраняются в приложении и используются только для авторизации." FontSize="10" Opacity="0.7" Margin="0,0,0,8"/>
+                                <Button x:Name="TwitchLoginButton" Content="Войти через Twitch" Width="220" Margin="0,8,0,0" Click="TwitchLoginButton_Click" Style="{StaticResource ModernButton}"/>
+                                <TextBlock x:Name="TwitchAuthStatusTextBlock" Text="Статус авторизации: Не авторизован" Margin="0,8,0,0"/>
+                                <Button x:Name="TwitchRefreshStatusButton" Content="Обновить статус Twitch" Width="180" Margin="0,8,0,0" Click="TwitchRefreshStatusButton_Click" Style="{StaticResource ModernButton}"/>
+                                <Button x:Name="TwitchLogoutButton" Content="Выйти из Twitch" Width="220" Margin="0,8,0,0" Click="TwitchLogoutButton_Click" Visibility="Collapsed" Style="{StaticResource ModernButton}"/>
+                            </StackPanel>
+                        </Border>
+                        
+                        <StackPanel x:Name="TwitchDeviceFlowPanel" Visibility="Collapsed" Margin="0,8,0,0">
+                            <TextBlock Text="1. Перейдите по ссылке для подтверждения авторизации:"/>
+                            <TextBlock>
+                                <Hyperlink x:Name="TwitchDeviceFlowLink" NavigateUri="https://twitch.tv" RequestNavigate="Hyperlink_RequestNavigate">https://twitch.tv/activate</Hyperlink>
+                            </TextBlock>
+                            <TextBlock Text="2. Введите этот код:" Margin="0,8,0,0"/>
+                            <TextBox x:Name="TwitchDeviceFlowCodeBox" IsReadOnly="True" FontWeight="Bold" FontSize="16" Width="180" Margin="0,0,0,8"/>
+                            <TextBlock Text="(Код уже скопирован в буфер обмена)" FontSize="10" Opacity="0.7"/>
+                        </StackPanel>
                         
                         <!-- Управление быстрыми ответами -->
                         <Border Background="{StaticResource CardBrush}" CornerRadius="8" Padding="16">
@@ -453,6 +494,19 @@
                                         HorizontalAlignment="Left"/>
                             </StackPanel>
                         </Border>
+
+                        <!-- В секцию Twitch-интеграции, после кнопки TwitchLoginButton -->
+                        <TextBlock Text="Награда для озвучки:" Margin="0,16,0,4" FontWeight="Bold"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                            <ComboBox x:Name="TwitchRewardComboBox" Width="320" ToolTip="Выберите Twitch-награду для озвучки"/>
+                            <Button x:Name="TwitchRefreshRewardsButton" Content="Обновить список наград" Width="180" Margin="8,0,0,0" Click="TwitchRefreshRewardsButton_Click" Style="{StaticResource ModernButton}"/>
+                        </StackPanel>
+                        <TextBlock Text="Режим озвучки:" Margin="0,8,0,4" FontWeight="Bold"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                            <RadioButton x:Name="TTSModeRewardOnlyRadio" Content="Только по награде" GroupName="TTSMode" Margin="0,0,16,0"/>
+                            <RadioButton x:Name="TTSModeRolesOnlyRadio" Content="Только по ролям" GroupName="TTSMode" Margin="0,0,16,0"/>
+                            <RadioButton x:Name="TTSModeBothRadio" Content="По награде и ролям" GroupName="TTSMode"/>
+                        </StackPanel>
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>

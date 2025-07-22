@@ -24,6 +24,7 @@ namespace SilentCaster
             LoadSettings();
             SetupEventHandlers();
             UpdateUI();
+            _obsService.VersionDetected += OnOBSVersionDetected;
         }
 
         private void LoadSettings()
@@ -107,8 +108,8 @@ namespace SilentCaster
             var subtitlesEnabled = SubtitlesEnabledCheckBox.IsChecked == true;
 
             // OBS элементы
-            OBSUrlTextBox.IsEnabled = obsEnabled;
-            OBSPasswordBox.IsEnabled = obsEnabled;
+            OBSUrlTextBox.IsEnabled = true; // всегда доступно
+            OBSPasswordBox.IsEnabled = true; // всегда доступно
             ConnectOBSButton.IsEnabled = obsEnabled && !_obsService.IsConnected;
             DisconnectOBSButton.IsEnabled = obsEnabled && _obsService.IsConnected;
             TestOBSButton.IsEnabled = obsEnabled && _obsService.IsConnected;
@@ -168,8 +169,22 @@ namespace SilentCaster
                 OBSStatusTextBlock.Text = "Подключение...";
                 OBSStatusTextBlock.Foreground = Brushes.Yellow;
 
-                var success = await _obsService.ConnectAsync(OBSUrlTextBox.Text, OBSPasswordBox.Password);
-                
+                string url = OBSUrlTextBox.Text.Trim();
+                if (!url.StartsWith("ws://") && !url.StartsWith("wss://"))
+                    url = "ws://" + url;
+                try
+                {
+                    var uri = new Uri(url); // Проверка формата
+                }
+                catch (UriFormatException)
+                {
+                    OBSStatusTextBlock.Text = "Ошибка: некорректный адрес OBS (должен быть ws://host:port)";
+                    OBSStatusTextBlock.Foreground = Brushes.Red;
+                    ConnectOBSButton.IsEnabled = true;
+                    return;
+                }
+
+                var success = await _obsService.ConnectAsync(url, OBSPasswordBox.Password);
                 if (success)
                 {
                     OBSStatusTextBlock.Text = "Подключено к OBS";
@@ -319,6 +334,15 @@ namespace SilentCaster
             _subtitlesService.SubtitleCleared -= OnSubtitleCleared;
             
             base.OnClosed(e);
+        }
+
+        private void OnOBSVersionDetected(object? sender, string version)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                OBSStatusTextBlock.Text = $"Подключено к OBS (версия: {version})";
+                OBSStatusTextBlock.Foreground = Brushes.Green;
+            });
         }
     }
 

@@ -8,6 +8,9 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using SilentCaster.Models;
 using SilentCaster.Services;
+using TwitchLib.PubSub;
+using TwitchLib.PubSub.Events;
+using System.Windows.Navigation;
 
 namespace SilentCaster
 {
@@ -28,6 +31,9 @@ namespace SilentCaster
         private readonly Random _random;
         private VoiceSettings _voiceSettings;
         private AppSettings _appSettings;
+        private TwitchPubSub _pubSub;
+        private string? _twitchUserName = null;
+        private System.Timers.Timer? _twitchUserCheckTimer;
 
         public MainWindow()
         {
@@ -113,6 +119,53 @@ namespace SilentCaster
             {
                 InitializeVoiceSettings();
             }));
+
+            // После загрузки настроек:
+            _twitchUserName = null;
+            if (!string.IsNullOrEmpty(_appSettings.TwitchOAuthToken) && !string.IsNullOrEmpty(_appSettings.TwitchClientId))
+            {
+                // Проверяем токен и получаем ник
+                _ = CheckTwitchAuthStatusAsync();
+            }
+            else
+            {
+                UpdateTwitchAuthUI();
+            }
+            StartTwitchUserCheckTimer();
+
+            TwitchRewardComboBox.SelectionChanged += TwitchRewardComboBox_SelectionChanged;
+            TwitchRefreshRewardsButton.Click += TwitchRefreshRewardsButton_Click;
+            TTSModeRewardOnlyRadio.Checked += TTSModeRadio_Checked;
+            TTSModeRolesOnlyRadio.Checked += TTSModeRadio_Checked;
+            TTSModeBothRadio.Checked += TTSModeRadio_Checked;
+            // Восстановить режим из настроек
+            if (_appSettings.TTSMode == "reward")
+                TTSModeRewardOnlyRadio.IsChecked = true;
+            else if (_appSettings.TTSMode == "roles")
+                TTSModeRolesOnlyRadio.IsChecked = true;
+            else
+                TTSModeBothRadio.IsChecked = true;
+            // После авторизации — загрузить награды
+            if (!string.IsNullOrEmpty(_appSettings.TwitchOAuthToken) && !string.IsNullOrEmpty(_appSettings.TwitchClientId))
+                _ = LoadTwitchRewardsAsync();
+
+            EventSoundsEnabledCheckBox.Checked += EventSoundsEnabledCheckBox_Checked;
+            EventSoundsEnabledCheckBox.Unchecked += EventSoundsEnabledCheckBox_Unchecked;
+            EventSoundsEnabledCheckBox.IsChecked = _appSettings.EventSoundsEnabled;
+        }
+
+        private async Task CheckTwitchAuthStatusAsync()
+        {
+            try
+            {
+                _twitchUserName = await GetTwitchUserNameAsync(_appSettings.TwitchOAuthToken, _appSettings.TwitchClientId);
+            }
+            catch
+            {
+                _twitchUserName = null;
+                _appSettings.TwitchOAuthToken = string.Empty;
+            }
+            UpdateTwitchAuthUI();
         }
 
         private void InitializeVoiceSettings()
@@ -226,6 +279,7 @@ namespace SilentCaster
                 VolumeSlider.Value = volume;
                 VolumeTextBlock.Text = $"{volume}%";
             }
+            UpdateTwitchAuthUI();
         }
 
         private void UpdateVoiceSettings()
@@ -942,6 +996,8 @@ namespace SilentCaster
             _speechService?.Dispose();
             _obsService?.Dispose();
             _subtitlesService?.Dispose();
+            _twitchUserCheckTimer?.Stop();
+            _twitchUserCheckTimer?.Dispose();
             
             base.OnClosed(e);
         }
@@ -967,6 +1023,16 @@ namespace SilentCaster
             _appSettings.VoiceSettings = _voiceSettings;
             _appSettings.UseMultipleVoices = _voiceSettings.UseMultipleVoices;
             
+            // Сохраняем настройки озвучки чата
+            _appSettings.EnableChatVoice = EnableChatVoiceCheckBox.IsChecked == true;
+            _appSettings.VoiceOnlyForSubscribers = VoiceOnlyForSubscribersCheckBox.IsChecked == true;
+            _appSettings.VoiceOnlyForVips = VoiceOnlyForVipsCheckBox.IsChecked == true;
+            _appSettings.VoiceOnlyForModerators = VoiceOnlyForModeratorsCheckBox.IsChecked == true;
+            _appSettings.ChatTriggerSymbol = ChatTriggerSymbolTextBox.Text;
+            _appSettings.MaxChatMessages = int.TryParse(MaxChatMessagesTextBox.Text, out int maxMessages) ? maxMessages : 100;
+            _appSettings.TTSMode = TTSModeRewardOnlyRadio.IsChecked == true ? "reward" : TTSModeRolesOnlyRadio.IsChecked == true ? "roles" : "both";
+            _appSettings.EventSoundsEnabled = EventSoundsEnabledCheckBox.IsChecked == true;
+
             // Сохраняем в файл
             _settingsService.SaveSettings(_appSettings);
         }
@@ -1002,6 +1068,313 @@ namespace SilentCaster
         private void OnCloseClick(object sender, RoutedEventArgs e)
         {
             this.Close();
+        }
+
+        private void InitTwitchPubSub()
+        {
+            if (string.IsNullOrWhiteSpace(_appSettings.TwitchOAuthToken) ||
+                string.IsNullOrWhiteSpace(_appSettings.TwitchChannelId) ||
+                string.IsNullOrWhiteSpace(_appSettings.TwitchRewardId))
+                return;
+            _pubSub = new TwitchPubSub();
+            _pubSub.OnPubSubServiceConnected += (s, e) =>
+            {
+                _pubSub.ListenToChannelPoints(_appSettings.TwitchChannelId);
+                _pubSub.SendTopics(_appSettings.TwitchOAuthToken.StartsWith("oauth:") ? _appSettings.TwitchOAuthToken : $"oauth:{_appSettings.TwitchOAuthToken}");
+            };
+            _pubSub.OnRewardRedeemed += OnRewardRedeemed;
+            _pubSub.Connect();
+        }
+        private async void OnRewardRedeemed(object sender, OnRewardRedeemedArgs e)
+        {
+            // Попробуй так:
+            var reward = e.GetType().GetProperty("RewardRedeemed")?.GetValue(e, null);
+            if (reward != null)
+            {
+                var rewardId = reward.GetType().GetProperty("RewardId")?.GetValue(reward, null)?.ToString();
+                var displayName = reward.GetType().GetProperty("DisplayName")?.GetValue(reward, null)?.ToString();
+                var userInput = reward.GetType().GetProperty("UserInput")?.GetValue(reward, null)?.ToString();
+
+                System.Diagnostics.Debug.WriteLine($"RewardId: {rewardId}, DisplayName: {displayName}, UserInput: {userInput}");
+
+                if (rewardId == _appSettings.TwitchRewardId)
+                {
+                    if (!_forbiddenWordsService.ContainsForbiddenWords(userInput))
+                    {
+                        await _speechService.SpeakAsync(userInput, displayName, "chat");
+                        await _subtitlesService.ShowSubtitleAsync(userInput, displayName);
+                    }
+                }
+            }
+            else
+            {
+                System.Diagnostics.Debug.WriteLine("RewardRedeemed property not found on OnRewardRedeemedArgs!");
+            }
+        }
+
+        private async void TwitchRefreshStatusButton_Click(object sender, RoutedEventArgs e)
+        {
+            await CheckTwitchAuthStatusAsync();
+        }
+
+        private void ShowTwitchDeviceFlow(string verificationUri, string userCode)
+        {
+            if (TwitchDeviceFlowPanel != null)
+                TwitchDeviceFlowPanel.Visibility = Visibility.Visible;
+            if (TwitchDeviceFlowLink != null)
+            {
+                TwitchDeviceFlowLink.NavigateUri = new Uri(verificationUri);
+                TwitchDeviceFlowLink.Inlines.Clear();
+                TwitchDeviceFlowLink.Inlines.Add(verificationUri);
+            }
+            if (TwitchDeviceFlowCodeBox != null)
+                TwitchDeviceFlowCodeBox.Text = userCode;
+        }
+        private void HideTwitchDeviceFlow()
+        {
+            if (TwitchDeviceFlowPanel != null)
+                TwitchDeviceFlowPanel.Visibility = Visibility.Collapsed;
+        }
+
+        private async void TwitchLoginButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                string? clientId = null;
+                string? clientSecret = null;
+                if (TwitchAdvancedModeCheckBox != null && TwitchAdvancedModeCheckBox.IsChecked == true)
+                {
+                    clientId = TwitchClientIdTextBox?.Text;
+                    clientSecret = TwitchClientSecretBox?.Password;
+                }
+                var oauth = new TwitchOAuthService(clientId, clientSecret, "channel:read:redemptions user:read:chat user:read:email");
+                var deviceFlowInfo = await oauth.RequestDeviceCodeAsync();
+                string url = deviceFlowInfo.VerificationUri;
+                if (!string.IsNullOrEmpty(deviceFlowInfo.UserCode))
+                {
+                    url += (url.Contains("?") ? "&" : "?") + "user_code=" + Uri.EscapeDataString(deviceFlowInfo.UserCode);
+                }
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true });
+                ShowTwitchDeviceFlow(deviceFlowInfo.VerificationUri, deviceFlowInfo.UserCode);
+                var token = await oauth.PollDeviceTokenAsync(deviceFlowInfo.DeviceCode, deviceFlowInfo.Interval);
+                HideTwitchDeviceFlow();
+                if (!string.IsNullOrEmpty(token))
+                {
+                    _appSettings.TwitchOAuthToken = token;
+                    _appSettings.TwitchClientId = clientId ?? TwitchOAuthService.DefaultClientId;
+                    SaveAppSettings();
+                    await CheckTwitchAuthStatusAsync();
+                    UpdateTwitchAuthUI(); // Явно обновить статус
+                    System.Windows.MessageBox.Show($"Успешная авторизация через Twitch!{(_twitchUserName != null ? "\nПользователь: " + _twitchUserName : "")}", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+                else
+                {
+                    UpdateTwitchAuthUI(); // На всякий случай
+                    System.Windows.MessageBox.Show("Не удалось получить токен Twitch.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                HideTwitchDeviceFlow();
+                UpdateTwitchAuthUI();
+                System.Windows.MessageBox.Show($"Ошибка авторизации: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private async Task<string?> GetTwitchUserNameAsync(string accessToken, string clientId)
+        {
+            using var http = new System.Net.Http.HttpClient();
+            http.DefaultRequestHeaders.Add("Authorization", $"Bearer {accessToken}");
+            http.DefaultRequestHeaders.Add("Client-Id", clientId);
+            var resp = await http.GetAsync("https://api.twitch.tv/helix/users");
+            var json = await resp.Content.ReadAsStringAsync();
+            using var doc = System.Text.Json.JsonDocument.Parse(json);
+            var root = doc.RootElement;
+            if (root.TryGetProperty("data", out var data) && data.GetArrayLength() > 0)
+                return data[0].GetProperty("display_name").GetString();
+            return null;
+        }
+
+        private async Task LoadTwitchRewardsAsync()
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(_appSettings.TwitchOAuthToken) || string.IsNullOrEmpty(_appSettings.TwitchClientId))
+                {
+                    MessageBox.Show("Сначала выполните авторизацию в Twitch!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+                // Получаем broadcaster_id (user_id)
+                string? userId = await GetTwitchUserIdAsync(_appSettings.TwitchOAuthToken, _appSettings.TwitchClientId);
+                if (string.IsNullOrEmpty(userId))
+                {
+                    MessageBox.Show("Не удалось получить ID пользователя Twitch.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+                using var http = new System.Net.Http.HttpClient();
+                http.DefaultRequestHeaders.Add("Authorization", $"Bearer {_appSettings.TwitchOAuthToken}");
+                http.DefaultRequestHeaders.Add("Client-Id", _appSettings.TwitchClientId);
+                var resp = await http.GetAsync($"https://api.twitch.tv/helix/channel_points/custom_rewards?broadcaster_id={userId}");
+                var json = await resp.Content.ReadAsStringAsync();
+                using var doc = System.Text.Json.JsonDocument.Parse(json);
+                var root = doc.RootElement;
+                if (!root.TryGetProperty("data", out var data) || data.GetArrayLength() == 0)
+                {
+                    MessageBox.Show("У вас нет созданных наград Channel Points. Создайте награду на панели управления Twitch.", "Нет наград", MessageBoxButton.OK, MessageBoxImage.Information);
+                    TwitchRewardComboBox.ItemsSource = null;
+                    return;
+                }
+                var rewards = new List<(string Id, string Title, string Prompt)>();
+                foreach (var reward in data.EnumerateArray())
+                {
+                    var id = reward.GetProperty("id").GetString() ?? "";
+                    var title = reward.GetProperty("title").GetString() ?? "";
+                    var prompt = reward.TryGetProperty("prompt", out var p) ? p.GetString() ?? "" : "";
+                    rewards.Add((id, title, prompt));
+                }
+                TwitchRewardComboBox.ItemsSource = rewards;
+                TwitchRewardComboBox.DisplayMemberPath = "Title";
+                TwitchRewardComboBox.SelectedValuePath = "Id";
+                // Восстановить выбор из настроек
+                if (!string.IsNullOrEmpty(_appSettings.TwitchRewardId))
+                    TwitchRewardComboBox.SelectedValue = _appSettings.TwitchRewardId;
+                else
+                    TwitchRewardComboBox.SelectedIndex = 0;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка загрузки наград Twitch: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private async Task<string?> GetTwitchUserIdAsync(string accessToken, string clientId)
+        {
+            using var http = new System.Net.Http.HttpClient();
+            http.DefaultRequestHeaders.Add("Authorization", $"Bearer {accessToken}");
+            http.DefaultRequestHeaders.Add("Client-Id", clientId);
+            var resp = await http.GetAsync("https://api.twitch.tv/helix/users");
+            var json = await resp.Content.ReadAsStringAsync();
+            using var doc = System.Text.Json.JsonDocument.Parse(json);
+            var root = doc.RootElement;
+            if (root.TryGetProperty("data", out var data) && data.GetArrayLength() > 0)
+                return data[0].GetProperty("id").GetString();
+            return null;
+        }
+
+        private async void TwitchRefreshRewardsButton_Click(object sender, RoutedEventArgs e)
+        {
+            await LoadTwitchRewardsAsync();
+        }
+
+        private void TwitchRewardComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (TwitchRewardComboBox.SelectedValue is string rewardId)
+            {
+                _appSettings.TwitchRewardId = rewardId;
+                SaveAppSettings();
+            }
+        }
+
+        private void TTSModeRadio_Checked(object sender, RoutedEventArgs e)
+        {
+            if (TTSModeRewardOnlyRadio.IsChecked == true)
+                _appSettings.TTSMode = "reward";
+            else if (TTSModeRolesOnlyRadio.IsChecked == true)
+                _appSettings.TTSMode = "roles";
+            else if (TTSModeBothRadio.IsChecked == true)
+                _appSettings.TTSMode = "both";
+            SaveAppSettings();
+        }
+
+        private void TwitchLogoutButton_Click(object sender, RoutedEventArgs e)
+        {
+            _appSettings.TwitchOAuthToken = string.Empty;
+            _appSettings.TwitchClientId = string.Empty;
+            _twitchUserName = null;
+            SaveAppSettings();
+            UpdateTwitchAuthUI();
+            System.Windows.MessageBox.Show("Вы вышли из Twitch.", "Twitch", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        private void UpdateTwitchAuthUI()
+        {
+            bool isAuth = !string.IsNullOrEmpty(_appSettings.TwitchOAuthToken);
+            if (TwitchAuthStatusTextBlock != null)
+            {
+                TwitchAuthStatusTextBlock.Text = isAuth ? $"Статус авторизации: Авторизован{(_twitchUserName != null ? " как " + _twitchUserName : "")}" : "Статус авторизации: Не авторизован";
+            }
+            if (TwitchLoginButton != null)
+                TwitchLoginButton.IsEnabled = !isAuth;
+            if (TwitchLogoutButton != null)
+                TwitchLogoutButton.Visibility = isAuth ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
+            // Здесь можно заблокировать/разблокировать другие поля, если они есть
+        }
+
+        private void Hyperlink_RequestNavigate(object sender, RequestNavigateEventArgs e)
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(e.Uri.AbsoluteUri) { UseShellExecute = true });
+            e.Handled = true;
+        }
+
+        // Вспомогательный метод для ввода client secret
+        private Task<string?> ShowInputDialogAsync(string prompt)
+        {
+            var tcs = new TaskCompletionSource<string?>();
+            var inputWindow = new Window
+            {
+                Title = prompt,
+                Width = 400,
+                Height = 150,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                ResizeMode = ResizeMode.NoResize,
+                Owner = this
+            };
+            var stack = new StackPanel { Margin = new Thickness(16) };
+            var textBox = new TextBox { Margin = new Thickness(0, 0, 0, 8) };
+            var okButton = new Button { Content = "OK", Width = 80, IsDefault = true };
+            okButton.Click += (s, e) => { inputWindow.DialogResult = true; inputWindow.Close(); };
+            stack.Children.Add(textBox);
+            stack.Children.Add(okButton);
+            inputWindow.Content = stack;
+            inputWindow.ShowDialog();
+            tcs.SetResult(textBox.Text);
+            return tcs.Task;
+        }
+
+        private void StartTwitchUserCheckTimer()
+        {
+            _twitchUserCheckTimer = new System.Timers.Timer(5 * 60 * 1000); // 5 минут
+            _twitchUserCheckTimer.Elapsed += async (s, e) =>
+            {
+                if (!string.IsNullOrEmpty(_appSettings.TwitchOAuthToken) && !string.IsNullOrEmpty(_appSettings.TwitchClientId))
+                {
+                    await Dispatcher.InvokeAsync(async () => await CheckTwitchAuthStatusAsync());
+                }
+            };
+            _twitchUserCheckTimer.AutoReset = true;
+            _twitchUserCheckTimer.Start();
+        }
+
+        private void TwitchAdvancedModeCheckBox_Checked(object sender, RoutedEventArgs e)
+        {
+            if (TwitchAdvancedPanel != null)
+                TwitchAdvancedPanel.Visibility = System.Windows.Visibility.Visible;
+        }
+        private void TwitchAdvancedModeCheckBox_Unchecked(object sender, RoutedEventArgs e)
+        {
+            if (TwitchAdvancedPanel != null)
+                TwitchAdvancedPanel.Visibility = System.Windows.Visibility.Collapsed;
+        }
+
+        private void EventSoundsEnabledCheckBox_Checked(object sender, RoutedEventArgs e)
+        {
+            _appSettings.EventSoundsEnabled = true;
+            SaveAppSettings();
+        }
+        private void EventSoundsEnabledCheckBox_Unchecked(object sender, RoutedEventArgs e)
+        {
+            _appSettings.EventSoundsEnabled = false;
+            SaveAppSettings();
         }
     }
 } 

@@ -87,8 +87,9 @@
                             <TextBlock Text="OBS интеграция" FontWeight="Bold" FontSize="14" VerticalAlignment="Center"/>
                         </StackPanel>
                         
+                        <!-- Сделать чекбокс заметнее -->
                         <CheckBox x:Name="OBSEnabledCheckBox" Content="Включить интеграцию с OBS Studio" 
-                                  Margin="0,0,0,12" Foreground="White"/>
+                                  Margin="0,0,0,12" Foreground="{StaticResource AccentBrush}" FontWeight="Bold" FontSize="15"/>
                         
                         <Border Background="#FF3F3F46" CornerRadius="6" Padding="16" Margin="0,0,0,16">
                             <StackPanel>
@@ -101,9 +102,11 @@
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Grid.Column="0" Text="URL:" VerticalAlignment="Center" 
                                                Margin="0,0,8,0" Foreground="White"/>
-                                    <TextBox Grid.Column="1" x:Name="OBSUrlTextBox" Text="ws://localhost:4444" 
-                                             Background="#FF2D2D30" BorderBrush="{StaticResource AccentBrush}" 
-                                             Foreground="White" Padding="8,6"/>
+                                    <TextBox Grid.Column="1" x:Name="OBSUrlTextBox" Text="ws://localhost:4444"
+                                             Background="#FF393A3F" BorderBrush="{StaticResource AccentBrush}"
+                                             Foreground="White" Padding="8,6" Height="36" Margin="0,0,0,0"
+                                             ToolTip="Адрес OBS WebSocket, например ws://localhost:4444"
+                                             BorderThickness="1"/>
                                 </Grid>
                                 
                                 <Grid Margin="0,0,0,8">
@@ -113,9 +116,11 @@
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Grid.Column="0" Text="Пароль:" VerticalAlignment="Center" 
                                                Margin="0,0,8,0" Foreground="White"/>
-                                    <PasswordBox Grid.Column="1" x:Name="OBSPasswordBox" 
-                                                 Background="#FF2D2D30" BorderBrush="{StaticResource AccentBrush}" 
-                                                 Foreground="White" Padding="8,6"/>
+                                    <PasswordBox Grid.Column="1" x:Name="OBSPasswordBox"
+                                                 Background="#FF393A3F" BorderBrush="{StaticResource AccentBrush}"
+                                                 Foreground="White" Padding="8,6" Height="36" Margin="0,0,0,0"
+                                                 ToolTip="Пароль OBS WebSocket (если установлен)"
+                                                 BorderThickness="1"/>
                                 </Grid>
                                 
                                 <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
@@ -227,22 +232,21 @@
                     </StackPanel>
                 </Border>
                 
-                <!-- Инструкции -->
+                <!-- Инструкция OBS: обновить -->
                 <Border Background="#FF3F3F46" CornerRadius="6" Padding="16">
                     <StackPanel>
-                        <TextBlock Text="📋 Инструкции" FontWeight="Bold" Margin="0,0,0,12" Foreground="White"/>
-                        
-                        <TextBlock Text="1. Установите OBS WebSocket плагин в OBS Studio" 
-                                   FontSize="11" Margin="0,0,0,4" Foreground="White"/>
-                        <TextBlock Text="2. Создайте текстовый источник 'Subtitles' в OBS" 
-                                   FontSize="11" Margin="0,0,0,4" Foreground="White"/>
-                        <TextBlock Text="3. Настройте подключение и включите интеграцию" 
-                                   FontSize="11" Margin="0,0,0,4" Foreground="White"/>
-                        <TextBlock Text="4. Субтитры будут автоматически отображаться в OBS" 
-                                   FontSize="11" Margin="0,0,0,4" Foreground="White"/>
-                        
-                        <TextBlock Text="💡 Подсказка: Субтитры можно отключить в любой момент" 
-                                   FontSize="10" Opacity="0.7" Margin="0,8,0,0" Foreground="White"/>
+                        <TextBlock Text="📋 Инструкция по интеграции с OBS" FontWeight="Bold" Margin="0,0,0,12" Foreground="White" FontSize="15"/>
+                        <TextBlock Text="1. Откройте OBS Studio версии 28.0.0 или новее." FontSize="12" Margin="0,0,0,4" Foreground="White"/>
+                        <TextBlock Text="2. Перейдите в меню 'Инструменты' → 'WebSocket Server Settings'." FontSize="12" Margin="0,0,0,4" Foreground="White"/>
+                        <TextBlock Text="3. Включите опцию 'Enable WebSocket server'." FontSize="12" Margin="0,0,0,4" Foreground="White"/>
+                        <TextBlock Text="4. Оставьте порт по умолчанию 4444 или укажите свой." FontSize="12" Margin="0,0,0,4" Foreground="White"/>
+                        <TextBlock Text="5. (По желанию) Установите пароль для безопасности." FontSize="12" Margin="0,0,0,4" Foreground="White"/>
+                        <TextBlock Text="6. Нажмите OK для сохранения настроек." FontSize="12" Margin="0,0,0,8" Foreground="White"/>
+                        <TextBlock Text="7. В этом окне укажите адрес (например, ws://localhost:4444) и пароль, если он установлен." FontSize="12" Margin="0,0,0,4" Foreground="White"/>
+                        <TextBlock Text="8. Нажмите 'Подключиться'. Если всё настроено верно, статус изменится на 'Подключено к OBS'." FontSize="12" Margin="0,0,0,4" Foreground="White"/>
+                        <TextBlock Text="9. Для отображения субтитров добавьте в OBS источник 'Текст (GDI+)' с именем 'Subtitles'." FontSize="12" Margin="0,0,0,4" Foreground="White"/>
+                        <TextBlock Text="10. Теперь вы можете использовать субтитры и другие функции интеграции!" FontSize="12" Margin="0,0,0,4" Foreground="White"/>
+                        <TextBlock Text="💡 В OBS Studio 28+ obs-websocket уже встроен, ничего скачивать не нужно!" FontSize="11" Opacity="0.8" Margin="0,8,0,0" Foreground="{StaticResource AccentBrush}"/>
                     </StackPanel>
                 </Border>
             </StackPanel>

@@ -78,8 +78,15 @@ namespace SilentCaster.Services
         public bool VoiceOnlyForSubscribers { get; set; } = false;
         public bool VoiceOnlyForVips { get; set; } = false;
         public bool VoiceOnlyForModerators { get; set; } = false;
+        public string TTSMode { get; set; } = "reward";
+        public bool EventSubtitlesEnabled { get; set; } = false;
+        public bool EventSoundsEnabled { get; set; } = false;
         
         // Настройки чата
         public int MaxChatMessages { get; set; } = 100;
+        public string TwitchOAuthToken { get; set; } = string.Empty;
+        public string TwitchChannelId { get; set; } = string.Empty;
+        public string TwitchRewardId { get; set; } = string.Empty;
+        public string TwitchClientId { get; set; } = string.Empty;
     }
 } 
