@@ -106,6 +106,9 @@ namespace SilentCaster
             ChatMessagesListBox.ItemsSource = _chatMessages;
             QuickResponsesListBox.ItemsSource = _responses;
             ActiveProfilesListBox.ItemsSource = _voiceSettings.VoiceProfiles;
+            _voiceSettings.VoiceProfiles.CollectionChanged += (s, e) => {
+                ActiveProfilesListBox.Items.Refresh();
+            };
             
             // Подписываемся на события
             _twitchService.MessageReceived += OnMessageReceived;
@@ -769,7 +772,7 @@ namespace SilentCaster
             
             // Обновляем настройки после закрытия окна
             _voiceSettings = voiceProfilesWindow.GetUpdatedVoiceSettings(_voiceSettings);
-            UpdateVoiceSettings();
+            _speechService.UpdateSettings(_voiceSettings); // <-- обязательно обновить сервис озвучки
             
             // Обновляем список активных профилей
             ActiveProfilesListBox.Items.Refresh();

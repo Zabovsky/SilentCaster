@@ -185,8 +185,16 @@
                                              VerticalContentAlignment="Center" Padding="8,0"/>
                                     
                                     <TextBlock Grid.Row="1" Grid.Column="0" Text="Голос:" Margin="0,0,8,8" VerticalAlignment="Center"/>
-                                    <ComboBox Grid.Row="1" Grid.Column="1" x:Name="VoiceComboBox" Height="32" 
-                                              Background="#FF2D2D30" BorderBrush="{StaticResource BorderBrush}" Margin="0,0,0,8"/>
+                                    <StackPanel Grid.Row="1" Grid.Column="1" Margin="0,0,0,8">
+                                        <TextBlock Text="Доступные голоса:" FontWeight="Bold" Margin="0,0,0,4"/>
+                                        <ListBox x:Name="VoicesListBox"
+                                                 Height="100"
+                                                 MinWidth="200"
+                                                 Background="{StaticResource CardBrush}"
+                                                 Foreground="White"
+                                                 BorderBrush="{StaticResource BorderBrush}"
+                                                 SelectionChanged="VoicesListBox_SelectionChanged"/>
+                                    </StackPanel>
                                     
                                     <TextBlock Grid.Row="2" Grid.Column="0" Text="Описание:" Margin="0,0,8,8" VerticalAlignment="Top"/>
                                     <TextBox Grid.Row="2" Grid.Column="1" x:Name="DescriptionTextBox" Height="60" 

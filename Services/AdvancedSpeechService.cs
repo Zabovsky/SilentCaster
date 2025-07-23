@@ -370,10 +370,15 @@ namespace SilentCaster.Services
             // Фильтруем активные профили по типу сообщения
             var availableProfiles = _voiceSettings.VoiceProfiles
                 .Where(p => p.IsEnabled)
-                .Where(p => 
+                .Where(p =>
+                    // Если ни одна галочка не стоит — профиль подходит для всех типов
+                    (!p.UseForChatMessages && !p.UseForQuickResponses && !p.UseForManualMessages)
+                    ||
+                    // Иначе — профиль подходит только для выбранных типов
                     (messageType == "chat" && p.UseForChatMessages) ||
                     (messageType == "quick" && p.UseForQuickResponses) ||
-                    (messageType == "manual" && p.UseForManualMessages))
+                    (messageType == "manual" && p.UseForManualMessages)
+                )
                 .ToList();
 
             if (!availableProfiles.Any())

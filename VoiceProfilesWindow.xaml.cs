@@ -23,7 +23,7 @@ namespace SilentCaster
             _voiceProfiles = new ObservableCollection<VoiceProfile>();
             
             // Загружаем существующие профили
-            foreach (var profile in voiceSettings.VoiceProfiles)
+            foreach (VoiceProfile profile in voiceSettings.VoiceProfiles)
             {
                 _voiceProfiles.Add(profile);
             }
@@ -32,12 +32,7 @@ namespace SilentCaster
             
             // Загружаем доступные голоса
             var voices = _speechService.GetAvailableVoices();
-            VoiceComboBox.ItemsSource = voices;
-            
-            if (voices.Any())
-            {
-                VoiceComboBox.SelectedIndex = 0;
-            }
+            VoicesListBox.ItemsSource = voices;
             
             // Устанавливаем обработчики событий для слайдеров
             RateSlider.ValueChanged += RateSlider_ValueChanged;
@@ -100,7 +95,16 @@ namespace SilentCaster
             ProfileNameTextBox.Focus(); // Фокусируемся на поле названия
             ProfileNameTextBox.SelectAll(); // Выделяем весь текст для удобного редактирования
             
-            VoiceComboBox.SelectedItem = profile.VoiceName;
+            // Выделяем голос в списке
+            if (!string.IsNullOrEmpty(profile.VoiceName))
+            {
+                VoicesListBox.SelectedItem = profile.VoiceName;
+            }
+            else if (VoicesListBox.Items.Count > 0)
+            {
+                VoicesListBox.SelectedIndex = 0;
+            }
+            
             DescriptionTextBox.Text = profile.Description;
             RateSlider.Value = profile.Rate;
             VolumeSlider.Value = profile.Volume;
@@ -184,7 +188,7 @@ namespace SilentCaster
                 return;
             }
             
-            if (VoiceComboBox.SelectedItem == null)
+            if (VoicesListBox.SelectedItem == null)
             {
                 MessageBox.Show("Выберите голос", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
@@ -192,7 +196,7 @@ namespace SilentCaster
             
             // Обновляем профиль
             _currentProfile.Name = ProfileNameTextBox.Text.Trim();
-            _currentProfile.VoiceName = VoiceComboBox.SelectedItem.ToString() ?? string.Empty;
+            _currentProfile.VoiceName = VoicesListBox.SelectedItem.ToString() ?? string.Empty;
             _currentProfile.Description = DescriptionTextBox.Text.Trim();
             _currentProfile.Rate = RateSlider.Value;
             _currentProfile.Volume = VolumeSlider.Value;
@@ -266,7 +270,7 @@ namespace SilentCaster
         {
             _currentProfile = null;
             ProfileNameTextBox.Text = string.Empty;
-            VoiceComboBox.SelectedIndex = -1;
+            VoicesListBox.SelectedIndex = -1;
             DescriptionTextBox.Text = string.Empty;
             RateSlider.Value = 0;
             VolumeSlider.Value = 100;
@@ -276,7 +280,7 @@ namespace SilentCaster
         public VoiceSettings GetUpdatedVoiceSettings(VoiceSettings originalSettings)
         {
             originalSettings.VoiceProfiles.Clear();
-            foreach (var profile in _voiceProfiles)
+            foreach (VoiceProfile profile in _voiceProfiles)
             {
                 originalSettings.VoiceProfiles.Add(profile);
             }
@@ -329,6 +333,14 @@ namespace SilentCaster
         {
             DialogResult = false;
             Close();
+        }
+
+        private void VoicesListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_currentProfile != null && VoicesListBox.SelectedItem != null)
+            {
+                _currentProfile.VoiceName = VoicesListBox.SelectedItem.ToString() ?? string.Empty;
+            }
         }
     }
 } 

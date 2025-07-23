@@ -63,11 +63,16 @@ namespace SilentCaster.Services
                 {
                     if (_settings.UseMultipleVoices && _settings.VoiceProfiles.Any(p => p.IsEnabled))
                     {
-                        // Фильтруем профили по типу сообщения и настройкам взаимодействия
-                        var enabledProfiles = _settings.VoiceProfiles.Where(p => p.IsEnabled && 
-                            (messageType == "chat" && p.UseForChatMessages ||
-                             messageType == "quick" && p.UseForQuickResponses ||
-                             messageType == "manual" && p.UseForManualMessages)).ToList();
+                        // Новая логика фильтрации профилей
+                        var enabledProfiles = _settings.VoiceProfiles.Where(p => p.IsEnabled && (
+                            // Если ни одна галочка не стоит — профиль подходит для всех типов
+                            (!p.UseForChatMessages && !p.UseForQuickResponses && !p.UseForManualMessages)
+                            ||
+                            // Иначе — профиль подходит только для выбранных типов
+                            (messageType == "chat" && p.UseForChatMessages) ||
+                            (messageType == "quick" && p.UseForQuickResponses) ||
+                            (messageType == "manual" && p.UseForManualMessages)
+                        )).ToList();
                         
                         if (enabledProfiles.Any())
                         {
@@ -222,6 +227,7 @@ namespace SilentCaster.Services
         {
             try
             {
+                System.Diagnostics.Debug.WriteLine($"[TTS] Выбран профиль: {(profile != null ? profile.Name : "Стандартный")}, голос: {(profile != null ? profile.VoiceName : "(SelectedVoice)" )}");
                 if (profile != null)
                 {
                     // Проверяем, является ли голос внешним
