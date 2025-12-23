@@ -1,0 +1,60 @@
+<div class="user-profile-overlay" (click)="onClose()" *ngIf="userInfo">
+  <div class="user-profile-dialog" (click)="$event.stopPropagation()">
+    <div class="profile-header">
+      <div class="profile-info">
+        <h2 [style.color]="userInfo.userColor">{{ userInfo.username }}</h2>
+        <div class="user-badges">
+          <span class="badge broadcaster" *ngIf="userInfo.isBroadcaster">👑 Стример</span>
+          <span class="badge moderator" *ngIf="userInfo.isModerator">🛡️ Модератор</span>
+          <span class="badge vip" *ngIf="userInfo.isVip">💎 VIP</span>
+          <span class="badge subscriber" *ngIf="userInfo.isSubscriber">⭐ Подписчик</span>
+          <span class="badge follower" *ngIf="userInfo.isFollower">👥 Фолловер</span>
+          <span class="badge prime" *ngIf="userInfo.isPrime">💳 Prime</span>
+        </div>
+      </div>
+      <button class="close-btn" (click)="onClose()">✕</button>
+    </div>
+
+    <div class="profile-stats">
+      <div class="stat-item">
+        <span class="stat-label">Сообщений сегодня:</span>
+        <span class="stat-value">{{ userInfo.totalMessages }}</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">Нарушений:</span>
+        <span class="stat-value">{{ userInfo.violations }}</span>
+      </div>
+      <div class="stat-item" *ngIf="userInfo.followDate">
+        <span class="stat-label">Фолловер с:</span>
+        <span class="stat-value">{{ userInfo.followDate | date:'dd.MM.yyyy' }}</span>
+      </div>
+      <div class="stat-item" *ngIf="userInfo.accountCreated">
+        <span class="stat-label">Аккаунт создан:</span>
+        <span class="stat-value">{{ userInfo.accountCreated | date:'dd.MM.yyyy' }}</span>
+      </div>
+    </div>
+
+    <div class="profile-actions">
+      <button class="action-btn twitch-profile" (click)="openTwitchProfile()" title="Открыть профиль на Twitch">
+        <span class="btn-icon">📺</span>
+        <span class="btn-text">Профиль на Twitch</span>
+      </button>
+      <button class="action-btn subscriptions" (click)="openSubscriptionsViewer()" title="Просмотр подписок">
+        <span class="btn-icon">👥</span>
+        <span class="btn-text">Подписки</span>
+      </button>
+    </div>
+
+    <div class="profile-messages">
+      <h3>Сообщения сегодня ({{ userMessages.length }})</h3>
+      <div class="messages-list">
+        <div class="message-item" *ngFor="let msg of userMessages">
+          <span class="msg-time">{{ msg.timestamp | date:'HH:mm:ss' }}</span>
+          <span class="msg-text">{{ msg.message }}</span>
+          <span class="msg-violation" *ngIf="msg.violation?.hasViolation">⚠️</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+

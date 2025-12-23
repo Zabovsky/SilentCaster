@@ -1,0 +1,133 @@
+<div class="twitch-auth-container">
+  <div class="auth-header">
+    <div class="auth-icon">🔐</div>
+    <h3>Авторизация Twitch</h3>
+    <p class="auth-description">
+      Для выполнения действий модерации необходимо авторизоваться через Twitch.
+      <br>
+      <small>После нажатия кнопки откроется браузер, где вы сможете авторизоваться.</small>
+    </p>
+    <div class="oauth-info">
+      <p class="info-text">
+        <strong>⚠️ ВАЖНО:</strong> Перед авторизацией убедитесь, что в настройках вашего Twitch приложения добавлен Redirect URI:
+        <br>
+        <code>http://localhost:3001/auth/callback</code>
+        <br>
+        <small style="color: #ff6b6b; font-weight: bold;">
+          ⚠️ Если вы видите ошибку redirect_mismatch, проверьте настройки Twitch:
+          <br>
+          1. Redirect URI должен быть ТОЧНО: <code>http://localhost:3001/auth/callback</code>
+          <br>
+          2. Не используйте <code>http://localhost:3001/</code> или <code>http://localhost:3001</code>
+          <br>
+          3. Путь должен заканчиваться на <code>/auth/callback</code>
+        </small>
+        <br>
+        <small>Инструкция: <a href="https://dev.twitch.tv/console/apps" target="_blank">dev.twitch.tv/console/apps</a> → Ваше приложение → OAuth Redirect URLs</small>
+      </p>
+    </div>
+  </div>
+
+  <!-- Статус авторизации -->
+  <div class="auth-status" *ngIf="isAuthenticated && userInfo">
+    <div class="user-info">
+      <img [src]="userInfo.profile_image_url || 'https://static-cdn.jtvnw.net/user-default-pictures-uv/294c98b5-e34d-42cd-a8f0-14046872a620-profile_image-70x70.png'" 
+           [alt]="userInfo.display_name" 
+           class="user-avatar" />
+      <div class="user-details">
+        <div class="user-name">{{ userInfo.display_name }}</div>
+        <div class="user-login">{{ '@' + userInfo.login }}</div>
+      </div>
+    </div>
+    <button class="btn btn-secondary" (click)="logout()">Выйти</button>
+  </div>
+
+  <!-- Форма авторизации -->
+  <div class="auth-form" *ngIf="!isAuthenticated">
+    <div class="auth-benefits">
+      <h4>Что дает авторизация:</h4>
+      <ul class="benefits-list">
+        <li>✅ Управление модерацией чата</li>
+        <li>✅ Удаление сообщений</li>
+        <li>✅ Таймауты и баны пользователей</li>
+        <li>✅ Управление банвордами Twitch</li>
+        <li>✅ Доступ к расширенным функциям</li>
+      </ul>
+    </div>
+
+    <!-- Расширенный режим -->
+    <div class="advanced-mode">
+      <label class="checkbox-label">
+        <input type="checkbox" [(ngModel)]="useAdvancedMode" />
+        <span>Использовать свой Client ID и Secret</span>
+      </label>
+      <small class="hint-text">Обычно не требуется. Используйте только если у вас есть собственное приложение Twitch.</small>
+    </div>
+
+    <div class="advanced-fields" *ngIf="useAdvancedMode">
+      <div class="form-group">
+        <label>Client ID:</label>
+        <input type="text" [(ngModel)]="clientId" placeholder="Ваш Twitch Client ID" />
+      </div>
+      <div class="form-group">
+        <label>Client Secret:</label>
+        <input type="password" [(ngModel)]="clientSecret" placeholder="Ваш Twitch Client Secret" />
+      </div>
+    </div>
+
+    <!-- Кнопка авторизации -->
+    <div class="auth-button-container">
+      <button 
+        class="btn btn-primary btn-large" 
+        (click)="startAuth()" 
+        [disabled]="isAuthenticating"
+      >
+        <span class="btn-icon">🔐</span>
+        <span class="btn-text">
+          {{ isAuthenticating ? 'Авторизация...' : 'Авторизоваться через Twitch' }}
+        </span>
+      </button>
+      <p class="auth-hint" *ngIf="!isAuthenticating">
+        После нажатия откроется браузер с сайтом Twitch для авторизации
+      </p>
+    </div>
+
+    <!-- Процесс авторизации -->
+    <div class="auth-process" *ngIf="isAuthenticating">
+      <div class="auth-status-info">
+        <div class="status-icon">⏳</div>
+        <h4>Ожидание авторизации</h4>
+        <p class="info-text">
+          Браузер должен был открыться автоматически. Если нет, проверьте настройки браузера.
+        </p>
+        <p class="info-text">
+          После авторизации в браузере вернитесь в приложение.
+        </p>
+        <div class="loading-spinner"></div>
+      </div>
+
+      <!-- Device Flow (fallback) -->
+      <div class="device-flow-info" *ngIf="deviceFlowInfo">
+        <p class="info-text">
+          <strong>Шаг 1:</strong> Откройте ссылку в браузере:
+        </p>
+        <a [href]="deviceFlowInfo.verification_uri" target="_blank" class="verification-link">
+          {{ deviceFlowInfo.verification_uri }}
+        </a>
+        
+        <p class="info-text">
+          <strong>Шаг 2:</strong> Введите код:
+        </p>
+        <div class="user-code-container">
+          <div class="user-code">{{ deviceFlowInfo.user_code }}</div>
+          <button class="btn-icon" (click)="copyUserCode()" title="Скопировать">
+            📋
+          </button>
+        </div>
+      </div>
+
+      <button class="btn btn-secondary" (click)="cancelAuth()">Отмена</button>
+    </div>
+  </div>
+</div>
+

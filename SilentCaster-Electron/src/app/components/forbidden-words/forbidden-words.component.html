@@ -1,0 +1,44 @@
+<div class="forbidden-words-container">
+  <div class="panel-header">
+    <h3>🚫 Запрещенные слова</h3>
+    <button class="btn-toggle" (click)="toggleEnabled()" [class.active]="enabled">
+      {{ enabled ? 'Включено' : 'Выключено' }}
+    </button>
+  </div>
+
+  <div class="panel-controls">
+    <div class="input-group">
+      <input 
+        type="text" 
+        [(ngModel)]="newWord" 
+        placeholder="Добавить запрещенное слово"
+        (keypress)="onKeyPress($event)"
+        class="word-input"
+      />
+      <button class="btn-add" (click)="addWord()">➕ Добавить</button>
+    </div>
+    
+    <label class="checkbox-label">
+      <input 
+        type="checkbox" 
+        [checked]="caseSensitive" 
+        (change)="toggleCaseSensitive()"
+      />
+      Учитывать регистр
+    </label>
+  </div>
+
+  <div class="words-list">
+    <div 
+      *ngFor="let word of forbiddenWords$ | async" 
+      class="word-item"
+    >
+      <span class="word-text">{{ word }}</span>
+      <button class="btn-remove" (click)="removeWord(word)" title="Удалить">❌</button>
+    </div>
+    <div *ngIf="(forbiddenWords$ | async)?.length === 0" class="empty-state">
+      Список запрещенных слов пуст
+    </div>
+  </div>
+</div>
+

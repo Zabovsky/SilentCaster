@@ -1,0 +1,136 @@
+<div class="settings-container">
+  <div class="settings-header">
+    <h2>⚙️ Настройки</h2>
+  </div>
+
+  <!-- Информация об авторизованном пользователе -->
+  <div class="user-info-section" *ngIf="isAuthenticated && userInfo">
+    <div class="user-card">
+      <img [src]="userInfo.profile_image_url || 'https://static-cdn.jtvnw.net/user-default-pictures-uv/294c98b5-e34d-42cd-a8f0-14046872a620-profile_image-70x70.png'" 
+           [alt]="userInfo.display_name" 
+           class="user-avatar" />
+      <div class="user-details">
+        <div class="user-name">{{ userInfo.display_name }}</div>
+        <div class="user-login">{{ '@' + userInfo.login }}</div>
+      </div>
+      <button class="btn btn-secondary btn-small" (click)="logout()">Выйти</button>
+    </div>
+  </div>
+
+  <!-- Авторизация (если не авторизован) -->
+  <div class="auth-section" *ngIf="!isAuthenticated">
+    <div class="section-header">
+      <h3>🔐 Авторизация Twitch</h3>
+      <button class="btn-toggle" (click)="showAuthSection = !showAuthSection">
+        {{ showAuthSection ? 'Скрыть' : 'Показать' }}
+      </button>
+    </div>
+    <app-twitch-auth 
+      *ngIf="showAuthSection"
+      (authSuccess)="onAuthSuccess()"
+    ></app-twitch-auth>
+  </div>
+
+  <!-- Настройки чата -->
+  <div class="settings-section">
+    <h3>💬 Настройки чата</h3>
+    <div class="settings-group">
+      <label class="setting-item">
+        <span class="setting-label">Максимальное количество сообщений:</span>
+        <input 
+          type="number" 
+          [(ngModel)]="settings.maxChatMessages" 
+          min="50" 
+          max="1000" 
+          step="50"
+          class="setting-input"
+        />
+        <span class="setting-hint">Текущее значение: {{ settings.maxChatMessages || 100 }}</span>
+      </label>
+    </div>
+  </div>
+
+  <!-- Настройки озвучки -->
+  <div class="settings-section">
+    <h3>🔊 Настройки озвучки</h3>
+    <div class="settings-group">
+      <label class="checkbox-label">
+        <input type="checkbox" [(ngModel)]="settings.enableChatVoice" />
+        <span>Включить озвучку чата</span>
+      </label>
+      <label class="setting-item" *ngIf="settings.enableChatVoice">
+        <span class="setting-label">Символ триггера:</span>
+        <input 
+          type="text" 
+          [(ngModel)]="settings.chatTriggerSymbol" 
+          placeholder="!!!"
+          class="setting-input"
+        />
+        <span class="setting-hint">Озвучивать только сообщения с этим символом</span>
+      </label>
+      <label class="checkbox-label">
+        <input type="checkbox" [(ngModel)]="settings.voiceOnlyForSubscribers" />
+        <span>Только для подписчиков</span>
+      </label>
+      <label class="checkbox-label">
+        <input type="checkbox" [(ngModel)]="settings.voiceOnlyForVips" />
+        <span>Только для VIP</span>
+      </label>
+      <label class="checkbox-label">
+        <input type="checkbox" [(ngModel)]="settings.voiceOnlyForModerators" />
+        <span>Только для модераторов</span>
+      </label>
+      <label class="checkbox-label">
+        <input type="checkbox" [(ngModel)]="settings.voiceOnlyForFollowers" />
+        <span>Только для фолловеров</span>
+      </label>
+    </div>
+  </div>
+
+  <!-- Настройки модерации -->
+  <div class="settings-section">
+    <h3>🛡️ Настройки модерации</h3>
+    <div class="settings-group">
+      <label class="checkbox-label">
+        <input type="checkbox" [(ngModel)]="settings.moderationSettings.forbiddenWordsEnabled" />
+        <span>Включить проверку запрещенных слов</span>
+      </label>
+      <label class="checkbox-label">
+        <input type="checkbox" [(ngModel)]="settings.moderationSettings.caseSensitive" />
+        <span>Учитывать регистр</span>
+      </label>
+      <label class="checkbox-label">
+        <input type="checkbox" [(ngModel)]="settings.moderationSettings.spamDetectionEnabled" />
+        <span>Обнаружение спама</span>
+      </label>
+      <label class="checkbox-label">
+        <input type="checkbox" [(ngModel)]="settings.moderationSettings.capsDetectionEnabled" />
+        <span>Обнаружение капса</span>
+      </label>
+      <label class="checkbox-label">
+        <input type="checkbox" [(ngModel)]="settings.moderationSettings.messageLengthCheckEnabled" />
+        <span>Проверка длины сообщения</span>
+      </label>
+      <label class="setting-item" *ngIf="settings.moderationSettings.messageLengthCheckEnabled">
+        <span class="setting-label">Максимальная длина сообщения:</span>
+        <input 
+          type="number" 
+          [(ngModel)]="settings.moderationSettings.maxMessageLength" 
+          min="50" 
+          max="500"
+          class="setting-input"
+        />
+      </label>
+      <label class="checkbox-label">
+        <input type="checkbox" [(ngModel)]="settings.moderationSettings.autoDeleteHighSeverity" />
+        <span>Автоматически удалять сообщения с высоким уровнем нарушения</span>
+      </label>
+    </div>
+  </div>
+
+  <!-- Кнопка сохранения -->
+  <div class="settings-actions">
+    <button class="btn btn-primary" (click)="saveSettings()">💾 Сохранить настройки</button>
+  </div>
+</div>
+
