@@ -77,14 +77,22 @@ try {
   clearChat: (channel) => ipcRenderer.invoke('twitch-clear', channel),
   sendWhisper: (username, message) => ipcRenderer.invoke('twitch-whisper', username, message),
   onTwitchMessage: (callback) => {
-    ipcRenderer.on('twitch-message', (event, data) => callback(data));
-    // Возвращаем функцию для очистки слушателя
-    return () => ipcRenderer.removeAllListeners('twitch-message');
+    // Создаем обработчик, который вызывает callback
+    const handler = (event, data) => callback(data);
+    ipcRenderer.on('twitch-message', handler);
+    // Возвращаем функцию для очистки конкретного слушателя
+    return () => {
+      ipcRenderer.removeListener('twitch-message', handler);
+    };
   },
   onTwitchStatus: (callback) => {
-    ipcRenderer.on('twitch-status', (event, data) => callback(data));
-    // Возвращаем функцию для очистки слушателя
-    return () => ipcRenderer.removeAllListeners('twitch-status');
+    // Создаем обработчик, который вызывает callback
+    const handler = (event, data) => callback(data);
+    ipcRenderer.on('twitch-status', handler);
+    // Возвращаем функцию для очистки конкретного слушателя
+    return () => {
+      ipcRenderer.removeListener('twitch-status', handler);
+    };
   },
   openExternal: (url) => ipcRenderer.invoke('open-external', url),
   

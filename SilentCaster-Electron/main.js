@@ -39,7 +39,12 @@ function createWindow() {
       preload: finalPreloadPath,
       webSecurity: false, // Для разработки
       allowRunningInsecureContent: true, // Разрешить небезопасный контент
-      sandbox: false // Отключаем sandbox для preload script
+      sandbox: false, // Отключаем sandbox для preload script
+      // Оптимизация производительности
+      enableWebSQL: false,
+      enableRemoteModule: false,
+      offscreen: false,
+      backgroundThrottling: true
     },
     titleBarStyle: 'default',
     frame: true,
@@ -313,6 +318,12 @@ function createWindow() {
     mainWindow = null;
   });
 }
+
+// Оптимизация производительности GPU для уменьшения ошибок tile memory
+// Ограничиваем использование памяти тайлов вместо полного отключения GPU
+app.commandLine.appendSwitch('max-old-space-size', '4096');
+app.commandLine.appendSwitch('disable-gpu-vsync'); // Отключаем вертикальную синхронизацию для лучшей производительности
+app.commandLine.appendSwitch('disable-software-rasterizer'); // Используем аппаратное ускорение
 
 app.whenReady().then(() => {
   createWindow();

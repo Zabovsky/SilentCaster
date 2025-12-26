@@ -1,4 +1,5 @@
 import { Component, OnInit } from '@angular/core';
+import { ThemeService } from './services/theme.service';
 
 @Component({
   selector: 'app-root',
@@ -9,6 +10,11 @@ export class AppComponent implements OnInit {
   title = 'SilentCaster 2.0';
   appVersion: string = '2.0.0';
   isElectron: boolean = false;
+
+  constructor(private themeService: ThemeService) {
+    // Инициализируем тему сразу при создании компонента
+    // ThemeService уже загрузит сохраненную тему в конструкторе
+  }
 
   ngOnInit(): void {
     console.log('AppComponent initialized');

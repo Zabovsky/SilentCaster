@@ -46,11 +46,11 @@ export class TwitchAuthComponent implements OnInit {
         } catch (error) {
           console.error('Error loading user info:', error);
           this.currentToken = '';
-          await this.saveToken('');
+          await this.saveToken('', this.clientId);
         }
       } else {
         this.currentToken = '';
-        await this.saveToken('');
+        await this.saveToken('', this.clientId);
       }
     }
   }
@@ -90,7 +90,8 @@ export class TwitchAuthComponent implements OnInit {
 
           if (token) {
             this.currentToken = token;
-            await this.saveToken(token);
+            // Сохраняем токен и clientId (даже если не используется advanced mode)
+            await this.saveToken(token, clientId);
 
             // Получаем информацию о пользователе
             const userInfo = await this.oauthService.getUserInfo(token, clientId);
@@ -139,7 +140,8 @@ export class TwitchAuthComponent implements OnInit {
 
         if (token) {
           this.currentToken = token;
-          await this.saveToken(token);
+          // Сохраняем токен и clientId
+          await this.saveToken(token, clientId);
 
           const userInfo = await this.oauthService.getUserInfo(token, clientId);
           this.userInfo = userInfo;
@@ -177,13 +179,21 @@ export class TwitchAuthComponent implements OnInit {
     this.authCancel.emit();
   }
 
-  private async saveToken(token: string): Promise<void> {
-    const settings = await this.settingsService.getSettings();
+  private async saveToken(token: string, clientId?: string): Promise<void> {
+    const settings = this.settingsService.getSettings();
     settings.twitchOAuthToken = token;
-    if (this.useAdvancedMode && this.clientId) {
+    // Сохраняем clientId если он передан или если используется advanced mode
+    if (clientId) {
+      settings.twitchClientId = clientId;
+    } else if (this.useAdvancedMode && this.clientId) {
       settings.twitchClientId = this.clientId;
+    } else if (!settings.twitchClientId) {
+      // Если clientId не установлен, используем дефолтный из сервиса
+      settings.twitchClientId = this.oauthService['defaultClientId'] || '';
     }
-    await this.settingsService.saveSettings(settings);
+    // Используем синхронный метод saveSettings
+    this.settingsService.saveSettings(settings);
+    console.log('[TwitchAuth] Token saved:', { hasToken: !!token, hasClientId: !!settings.twitchClientId });
   }
 
   copyUserCode(): void {

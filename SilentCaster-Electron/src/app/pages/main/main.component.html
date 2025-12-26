@@ -2,6 +2,39 @@
   <header class="main-header">
     <h1>SilentCaster 2.0</h1>
     <div class="header-right">
+      <!-- Переключатель тем -->
+      <div class="theme-switcher">
+        <button 
+          type="button"
+          class="theme-btn" 
+          [class.active]="currentTheme === 'light'"
+          (click)="onThemeChange('light')"
+          title="Светлая тема"
+          aria-label="Светлая тема"
+        >
+          <span class="theme-icon">☀️</span>
+        </button>
+        <button 
+          type="button"
+          class="theme-btn" 
+          [class.active]="currentTheme === 'dark'"
+          (click)="onThemeChange('dark')"
+          title="Темная тема"
+          aria-label="Темная тема"
+        >
+          <span class="theme-icon">🌙</span>
+        </button>
+        <button 
+          type="button"
+          class="theme-btn" 
+          [class.active]="currentTheme === 'peach'"
+          (click)="onThemeChange('peach')"
+          title="Персиковая тема"
+          aria-label="Персиковая тема"
+        >
+          <span class="theme-icon">🍑</span>
+        </button>
+      </div>
       <!-- Информация об авторизованном пользователе -->
       <div class="user-info" *ngIf="isAuthenticated && authenticatedUserInfo">
         <img [src]="authenticatedUserInfo.profile_image_url || 'https://static-cdn.jtvnw.net/user-default-pictures-uv/294c98b5-e34d-42cd-a8f0-14046872a620-profile_image-70x70.png'" 
@@ -90,22 +123,17 @@
       <div class="chat-header">
         <h2>Чат</h2>
         <div class="chat-actions">
-          <button 
-            class="btn-icon" 
-            (click)="showForbiddenWordsPanel = !showForbiddenWordsPanel" 
-            title="Управление запрещенными словами"
-            [class.active]="showForbiddenWordsPanel"
+          <select 
+            class="chat-sort-select"
+            [(ngModel)]="chatSortOrder"
+            (change)="onSortOrderChange()"
+            title="Сортировка чата"
           >
-            🚫
-          </button>
-          <button 
-            class="btn-icon" 
-            (click)="showTwitchBannedWords = !showTwitchBannedWords; onTwitchBannedWordsPanelToggle()" 
-            title="Банворды Twitch"
-            [class.active]="showTwitchBannedWords"
-          >
-            🎯
-          </button>
+            <option value="time-asc">⏱️ По времени (старые → новые)</option>
+            <option value="time-desc">⏱️ По времени (новые → старые)</option>
+            <option value="user-asc">👤 По пользователю (А → Я)</option>
+            <option value="user-desc">👤 По пользователю (Я → А)</option>
+          </select>
           <button 
             class="btn-icon" 
             (click)="clearChat()" 
@@ -126,7 +154,7 @@
       </div>
       <div class="chat-messages" #chatContainer (scroll)="onChatScroll()">
         <app-chat-message 
-          *ngFor="let message of chatMessages; trackBy: trackByTimestamp"
+          *ngFor="let message of sortedChatMessages; trackBy: trackByTimestamp"
           [message]="message"
           [isModerator]="isModerator"
           [channel]="channel"
@@ -136,16 +164,11 @@
           (showUserProfile)="showUserProfile($event)"
           (toggleUserHighlight)="toggleUserHighlight($event)"
         ></app-chat-message>
-        <div *ngIf="chatMessages.length === 0" class="no-messages">
+        <div *ngIf="sortedChatMessages.length === 0" class="no-messages">
           <div class="no-messages-icon">💬</div>
           <p>Сообщения чата появятся здесь</p>
         </div>
       </div>
-    </section>
-    
-    <!-- Панель управления запрещенными словами -->
-    <section class="forbidden-words-section" *ngIf="showForbiddenWordsPanel">
-      <app-forbidden-words></app-forbidden-words>
     </section>
     
     <!-- Панель настроек озвучки -->
@@ -186,55 +209,6 @@
             <input type="checkbox" [(ngModel)]="settings.voiceOnlyForFollowers" (change)="saveVoiceSettings()" />
             <span>Только для фолловеров</span>
           </label>
-        </div>
-      </div>
-    </section>
-    
-    <!-- Панель управления банвордами Twitch -->
-    <section class="twitch-banned-words-section" *ngIf="showTwitchBannedWords">
-      <div class="settings-panel">
-        <h3>🚫 Банворды Twitch</h3>
-        <p class="info-text" style="color: #b0b0b0; font-size: 0.9rem; margin-bottom: 1rem;">
-          Банворды автоматически применяются в чате Twitch. Для работы требуется авторизация.
-        </p>
-        <button 
-          class="btn btn-primary" 
-          (click)="loadTwitchBannedWords()"
-          [disabled]="isLoadingBannedWords || !channel"
-        >
-          {{ isLoadingBannedWords ? '⏳ Загрузка...' : '🔄 Загрузить банворды Twitch' }}
-        </button>
-        
-        <div class="banned-words-info" *ngIf="twitchBannedWords.length === 0 && showTwitchBannedWords && !isLoadingBannedWords">
-          <p style="color: #888; font-style: italic; margin: 1rem 0;">
-            Список банвордов пуст. Нажмите "Загрузить банворды Twitch" для синхронизации с Twitch.
-            <br>
-            <small style="color: #666;">Требуется авторизация и права модератора.</small>
-          </p>
-        </div>
-        
-        <div class="banned-words-info" *ngIf="isLoadingBannedWords">
-          <p style="color: #667eea; margin: 1rem 0;">⏳ Загрузка банвордов из Twitch...</p>
-        </div>
-        
-        <div class="banned-words-list" *ngIf="twitchBannedWords.length > 0">
-          <div class="list-header">
-            <span>Найдено банвордов: {{ twitchBannedWords.length }}</span>
-          </div>
-          <div class="word-item" *ngFor="let word of twitchBannedWords">
-            <span>{{ word }}</span>
-            <button class="btn-remove" (click)="removeTwitchBannedWord(word)" title="Удалить из Twitch">❌</button>
-          </div>
-        </div>
-        
-        <div class="add-word-section">
-          <input 
-            type="text" 
-            [(ngModel)]="newTwitchBannedWord" 
-            placeholder="Введите слово для добавления в Twitch" 
-            (keyup.enter)="addTwitchBannedWord()" 
-          />
-          <button class="btn btn-primary" (click)="addTwitchBannedWord()">➕ Добавить в Twitch</button>
         </div>
       </div>
     </section>

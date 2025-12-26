@@ -25,24 +25,24 @@
   }
 
   &:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background: var(--bg-secondary);
     transform: translateX(4px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 4px 12px var(--shadow);
   }
 
   &.subscriber {
-    background: rgba(255, 193, 7, 0.1);
-    border-left: 3px solid #ffc107;
+    background: rgba(var(--accent-warning-rgb, 255, 193, 7), 0.1);
+    border-left: 3px solid var(--accent-warning);
   }
 
   &.vip {
-    background: rgba(23, 162, 184, 0.1);
-    border-left: 3px solid #17a2b8;
+    background: rgba(var(--accent-primary-rgb, 91, 163, 245), 0.1);
+    border-left: 3px solid var(--accent-primary);
   }
 
   &.moderator {
-    background: rgba(40, 167, 69, 0.1);
-    border-left: 3px solid #28a745;
+    background: rgba(var(--accent-success-rgb, 40, 167, 69), 0.1);
+    border-left: 3px solid var(--accent-success);
   }
 
   // Выделение нарушений
@@ -347,7 +347,7 @@
 
     &:focus {
       outline: none;
-      border-color: #667eea;
+      border-color: var(--accent-primary);
       background: rgba(255, 255, 255, 0.08);
     }
   }
@@ -361,15 +361,18 @@
   button {
     flex: 1;
     padding: 0.5rem;
-    background: rgba(102, 126, 234, 0.2);
-    border: 1px solid rgba(102, 126, 234, 0.3);
+    background: var(--accent-primary);
+    opacity: 0.2;
+    border: 1px solid var(--accent-primary);
+    opacity: 0.3;
     border-radius: 6px;
     color: #fff;
     cursor: pointer;
     transition: all 0.2s;
 
     &:hover {
-      background: rgba(102, 126, 234, 0.4);
+      background: var(--accent-primary);
+      opacity: 0.4;
       transform: translateY(-2px);
     }
   }
@@ -392,12 +395,12 @@
   transition: all 0.2s;
 
   &.btn-primary {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: var(--accent-primary);
     color: white;
 
     &:hover {
       transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+      box-shadow: 0 4px 12px var(--shadow);
     }
   }
 

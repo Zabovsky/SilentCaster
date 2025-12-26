@@ -1,17 +1,29 @@
-import { Component, Input, Output, EventEmitter } from '@angular/core';
+import { Component, Input, Output, EventEmitter, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { ChatMessage } from '../../models/chat-message.model';
 import { ModerationService } from '../../services/moderation.service';
 
 @Component({
   selector: 'app-chat-message',
   templateUrl: './chat-message.component.html',
-  styleUrls: ['./chat-message.component.scss']
+  styleUrls: ['./chat-message.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ChatMessageComponent {
   @Input() message!: ChatMessage;
   @Input() isModerator: boolean = false;
   @Input() channel: string = '';
-  @Input() activeModerationMenu: string | null = null;
+  private _activeModerationMenu: string | null = null;
+  
+  @Input() 
+  set activeModerationMenu(value: string | null) {
+    this._activeModerationMenu = value;
+    this.showModerationMenu = value === this.message.timestamp.toString();
+    this.cdr.markForCheck();
+  }
+  
+  get activeModerationMenu(): string | null {
+    return this._activeModerationMenu;
+  }
   @Output() messageDeleted = new EventEmitter<string>();
   @Output() quickTimeout = new EventEmitter<{username: string; duration: number}>();
   @Output() quickBan = new EventEmitter<string>();
@@ -24,7 +36,10 @@ export class ChatMessageComponent {
   timeoutDuration: number = 600; // 10 minutes default
   timeoutReason: string = '';
 
-  constructor(private moderationService: ModerationService) {}
+  constructor(
+    private moderationService: ModerationService,
+    private cdr: ChangeDetectorRef
+  ) {}
 
   toggleModerationMenu(event: Event): void {
     event.stopPropagation();
@@ -39,6 +54,7 @@ export class ChatMessageComponent {
         this.showModerationMenu = true;
         this.moderationMenuToggled.emit(messageId);
       }
+      this.cdr.markForCheck();
     }
   }
 

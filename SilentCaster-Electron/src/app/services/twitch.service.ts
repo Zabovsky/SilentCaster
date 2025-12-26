@@ -16,6 +16,8 @@ export class TwitchService {
   public connectionStatusChanged$: Observable<string> = this.connectionStatusSubject.asObservable();
 
   private isConnected: boolean = false;
+  private messageListenerCleanup: (() => void) | null = null;
+  private statusListenerCleanup: (() => void) | null = null;
 
   constructor() {
     // Инициализация будет через Electron main process
@@ -93,9 +95,12 @@ export class TwitchService {
   private setupElectronEventListeners(): void {
     if (!window.electronAPI) return;
 
+    // Удаляем старые слушатели перед добавлением новых
+    this.removeElectronEventListeners();
+
     // Слушаем сообщения от main process
     if ((window.electronAPI as any).onTwitchMessage) {
-      (window.electronAPI as any).onTwitchMessage((data: any) => {
+      const cleanup = (window.electronAPI as any).onTwitchMessage((data: any) => {
         const chatMessage: ChatMessage = new ChatMessageImpl();
         chatMessage.username = data.username;
         chatMessage.message = data.message;
@@ -111,11 +116,15 @@ export class TwitchService {
 
         this.messageSubject.next(chatMessage);
       });
+      
+      if (cleanup && typeof cleanup === 'function') {
+        this.messageListenerCleanup = cleanup;
+      }
     }
 
     // Слушаем изменения статуса подключения
     if ((window.electronAPI as any).onTwitchStatus) {
-      (window.electronAPI as any).onTwitchStatus((data: any) => {
+      const cleanup = (window.electronAPI as any).onTwitchStatus((data: any) => {
         if (data.status === 'connected' || data.status === 'joined') {
           this.isConnected = true;
         } else if (data.status === 'disconnected') {
@@ -123,11 +132,32 @@ export class TwitchService {
         }
         this.connectionStatusSubject.next(data.message || data.status);
       });
+      
+      if (cleanup && typeof cleanup === 'function') {
+        this.statusListenerCleanup = cleanup;
+      }
+    }
+  }
+
+  private removeElectronEventListeners(): void {
+    // Удаляем слушатели сообщений
+    if (this.messageListenerCleanup) {
+      this.messageListenerCleanup();
+      this.messageListenerCleanup = null;
+    }
+
+    // Удаляем слушатели статуса
+    if (this.statusListenerCleanup) {
+      this.statusListenerCleanup();
+      this.statusListenerCleanup = null;
     }
   }
 
   async disconnect(): Promise<void> {
     try {
+      // Удаляем слушатели событий перед отключением
+      this.removeElectronEventListeners();
+
       if (window.electronAPI && (window.electronAPI as any).disconnectTwitch) {
         const result = await (window.electronAPI as any).disconnectTwitch();
         this.isConnected = false;

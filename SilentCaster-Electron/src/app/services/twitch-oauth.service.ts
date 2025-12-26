@@ -32,6 +32,7 @@ export class TwitchOAuthService {
   private readonly defaultClientSecret = 'irh95udt1uhisvp65e3j8ctmd0zgbq';
   private readonly oauthUrl = 'https://id.twitch.tv/oauth2';
   private readonly apiUrl = 'https://api.twitch.tv/helix';
+  private last401Logged: boolean = false;
 
   constructor() {}
 
@@ -196,7 +197,13 @@ export class TwitchOAuthService {
 
     if (response.status === 401) {
       const errorText = await response.text();
-      console.error('[getUserInfo] 401 Unauthorized:', errorText);
+      // Логируем только один раз, чтобы не засорять консоль
+      if (!this.last401Logged) {
+        console.warn('[getUserInfo] 401 Unauthorized - токен истек или невалиден');
+        this.last401Logged = true;
+        // Сбрасываем флаг через 5 секунд, чтобы можно было залогировать снова при следующей попытке
+        setTimeout(() => { this.last401Logged = false; }, 5000);
+      }
       throw new Error('Токен невалиден или истек. Пожалуйста, авторизуйтесь снова.');
     }
 
@@ -367,9 +374,17 @@ export class TwitchOAuthService {
         }
       });
 
+      // Если токен невалиден (401), не логируем ошибку, просто возвращаем false
+      if (response.status === 401) {
+        return false;
+      }
+
       return response.ok;
     } catch (error) {
-      console.error('Error validating token:', error);
+      // Логируем только сетевые ошибки, не ошибки валидации токена
+      if (!this.last401Logged) {
+        console.warn('[validateToken] Ошибка проверки токена:', error);
+      }
       return false;
     }
   }

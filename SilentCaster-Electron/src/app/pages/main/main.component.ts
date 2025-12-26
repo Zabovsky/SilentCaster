@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ViewChild, ElementRef, AfterViewChecked } from '@angular/core';
+import { Component, OnInit, OnDestroy, ViewChild, ElementRef, AfterViewChecked, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { Subscription } from 'rxjs';
 import { TwitchService } from '../../services/twitch.service';
 import { TtsService } from '../../services/tts.service';
@@ -8,13 +8,15 @@ import { ModerationService } from '../../services/moderation.service';
 import { AuthService } from '../../services/auth.service';
 import { ForbiddenWordsService } from '../../services/forbidden-words.service';
 import { TwitchOAuthService } from '../../services/twitch-oauth.service';
+import { ThemeService, Theme } from '../../services/theme.service';
 import { ChatMessage } from '../../models/chat-message.model';
 import { AppSettings } from '../../models/app-settings.model';
 
 @Component({
   selector: 'app-main',
   templateUrl: './main.component.html',
-  styleUrls: ['./main.component.scss']
+  styleUrls: ['./main.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class MainComponent implements OnInit, OnDestroy, AfterViewChecked {
   @ViewChild('chatContainer') chatContainer!: ElementRef;
@@ -27,16 +29,17 @@ export class MainComponent implements OnInit, OnDestroy, AfterViewChecked {
   autoScroll: boolean = true;
   private shouldScroll: boolean = false;
   activeModerationMenu: string | null = null;
-  showForbiddenWordsPanel: boolean = false;
   showUserProfileDialog: boolean = false;
   selectedUser: string = '';
   highlightedUsers: Set<string> = new Set();
   showVoiceSettings: boolean = false;
   showTwitchAuth: boolean = false;
-  showTwitchBannedWords: boolean = false;
   showSettings: boolean = false;
   isAuthenticated: boolean = false;
   authenticatedUserInfo: any = null;
+  currentTheme: Theme = 'dark';
+  chatSortOrder: 'time-asc' | 'time-desc' | 'user-asc' | 'user-desc' = 'time-asc';
+  sortedChatMessages: ChatMessage[] = [];
   
   private subscriptions: Subscription[] = [];
 
@@ -48,13 +51,25 @@ export class MainComponent implements OnInit, OnDestroy, AfterViewChecked {
     private moderationService: ModerationService,
     private authService: AuthService,
     private forbiddenWordsService: ForbiddenWordsService,
-    private oauthService: TwitchOAuthService
+    private oauthService: TwitchOAuthService,
+    public themeService: ThemeService,
+    private cdr: ChangeDetectorRef
   ) {
     this.settings = this.settingsService.getSettings();
     this.channel = this.settings.lastChannel || '';
+    this.currentTheme = this.themeService.getCurrentTheme();
+    this.sortedChatMessages = [];
   }
 
   async ngOnInit(): Promise<void> {
+    // Подписка на изменения темы
+    this.subscriptions.push(
+      this.themeService.currentTheme$.subscribe((theme: Theme) => {
+        this.currentTheme = theme;
+        this.cdr.markForCheck();
+      })
+    );
+    
     // Инициализация TTS - загружаем голоса
     this.initializeTTS();
     
@@ -67,7 +82,12 @@ export class MainComponent implements OnInit, OnDestroy, AfterViewChecked {
       // Обновляем лимит сообщений при изменении настроек
       const maxMessages = this.settings.maxChatMessages || 100;
       if (this.chatMessages.length > maxMessages) {
-        this.chatMessages = this.chatMessages.slice(-maxMessages);
+        // Сортируем по времени и берем последние N сообщений
+        const sortedByTime = this.chatMessages.slice().sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+        const recentMessages = sortedByTime.slice(-maxMessages);
+        this.chatMessages = recentMessages;
+        this.sortChatMessages();
+        this.cdr.markForCheck();
       }
     });
     
@@ -78,33 +98,55 @@ export class MainComponent implements OnInit, OnDestroy, AfterViewChecked {
       if (this.autoScroll) {
         this.shouldScroll = true;
       }
+      this.cdr.markForCheck();
     });
     this.subscriptions.push(messageSub);
 
     // Подписка на изменения статуса подключения
     const statusSub = this.twitchService.connectionStatusChanged$.subscribe(status => {
       this.connectionStatus = status;
+      this.cdr.markForCheck();
     });
     this.subscriptions.push(statusSub);
 
     // Подписка на изменения прав доступа
     const permissionsSub = this.authService.permissions$.subscribe(permissions => {
       this.isModerator = permissions.canModerate;
+      this.cdr.markForCheck();
     });
     this.subscriptions.push(permissionsSub);
 
     // Устанавливаем начальное значение
     this.isModerator = this.authService.isModerator();
+    
+    // Инициализируем сортировку
+    this.sortChatMessages();
   }
 
   async checkAuthStatus(): Promise<void> {
     const settings = this.settingsService.getSettings();
     if (settings.twitchOAuthToken && settings.twitchClientId) {
       try {
+        // Сначала проверяем валидность токена
+        const isValid = await this.oauthService.validateToken(settings.twitchOAuthToken);
+        if (!isValid) {
+          // Токен невалиден, очищаем его
+          console.warn('[MainComponent] Токен невалиден, очищаем настройки авторизации');
+          await this.clearInvalidToken();
+          return;
+        }
+
         this.authenticatedUserInfo = await this.oauthService.getUserInfo(settings.twitchOAuthToken, settings.twitchClientId);
         this.isAuthenticated = true;
-      } catch (error) {
-        console.error('Error checking auth status:', error);
+      } catch (error: any) {
+        // Если ошибка 401 (Unauthorized), токен истек - очищаем его
+        if (error.message && error.message.includes('401') || error.message.includes('невалиден') || error.message.includes('истек')) {
+          console.warn('[MainComponent] Токен истек или невалиден, очищаем настройки авторизации');
+          await this.clearInvalidToken();
+        } else {
+          // Другие ошибки логируем только один раз
+          console.error('[MainComponent] Error checking auth status:', error);
+        }
         this.isAuthenticated = false;
         this.authenticatedUserInfo = null;
       }
@@ -112,6 +154,18 @@ export class MainComponent implements OnInit, OnDestroy, AfterViewChecked {
       this.isAuthenticated = false;
       this.authenticatedUserInfo = null;
     }
+  }
+
+  private async clearInvalidToken(): Promise<void> {
+    const settings = this.settingsService.getSettings();
+    await this.settingsService.updateSettings({
+      ...settings,
+      twitchOAuthToken: '',
+      twitchClientId: '',
+      twitchChannelId: ''
+    });
+    this.isAuthenticated = false;
+    this.authenticatedUserInfo = null;
   }
 
   onAuthSuccess(): void {
@@ -162,20 +216,32 @@ export class MainComponent implements OnInit, OnDestroy, AfterViewChecked {
       
       // Сбрасываем чат и включаем автоскролл при подключении
       this.chatMessages = [];
+      this.sortedChatMessages = [];
       this.autoScroll = true;
       this.shouldScroll = true;
+      this.cdr.markForCheck();
       
       // Подключаемся (с авторизацией, если есть токен)
       const settings = await this.settingsService.getSettings();
-      if (settings.twitchOAuthToken) {
+      if (settings.twitchOAuthToken && settings.twitchClientId) {
         // Получаем информацию о пользователе для username
         try {
           const userInfo = await this.oauthService.getUserInfo(settings.twitchOAuthToken, settings.twitchClientId);
+          if (!userInfo || !userInfo.login) {
+            throw new Error('Не удалось получить информацию о пользователе');
+          }
           // Подключение с авторизацией
           await this.twitchService.connectWithAuth(userInfo.login, settings.twitchOAuthToken, this.channel);
-        } catch (error) {
+        } catch (error: any) {
           console.error('Error getting user info, connecting anonymously:', error);
+          console.error('Error details:', {
+            message: error.message,
+            stack: error.stack,
+            token: settings.twitchOAuthToken ? 'present' : 'missing',
+            clientId: settings.twitchClientId ? 'present' : 'missing'
+          });
           // Если не удалось получить информацию, подключаемся анонимно
+          console.log('Falling back to anonymous connection');
           await this.twitchService.connectAnonymously(this.channel);
         }
       } else {
@@ -204,13 +270,56 @@ export class MainComponent implements OnInit, OnDestroy, AfterViewChecked {
   }
 
   trackByTimestamp(index: number, message: ChatMessage): string {
-    return message.timestamp.toString();
+    return `${message.timestamp.getTime()}-${message.username}`;
+  }
+
+  sortChatMessages(): void {
+    if (this.chatMessages.length === 0) {
+      this.sortedChatMessages = [];
+      this.cdr.markForCheck();
+      return;
+    }
+    
+    // Используем более эффективную сортировку
+    const messages = this.chatMessages.slice(); // Более эффективно чем [...]
+    
+    switch (this.chatSortOrder) {
+      case 'time-asc':
+        messages.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+        break;
+      case 'time-desc':
+        messages.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+        break;
+      case 'user-asc':
+        messages.sort((a, b) => {
+          const nameCompare = a.username.localeCompare(b.username, 'ru');
+          if (nameCompare !== 0) return nameCompare;
+          return a.timestamp.getTime() - b.timestamp.getTime();
+        });
+        break;
+      case 'user-desc':
+        messages.sort((a, b) => {
+          const nameCompare = b.username.localeCompare(a.username, 'ru');
+          if (nameCompare !== 0) return nameCompare;
+          return a.timestamp.getTime() - b.timestamp.getTime();
+        });
+        break;
+    }
+    
+    this.sortedChatMessages = messages;
+    this.cdr.markForCheck();
+  }
+
+  onSortOrderChange(): void {
+    this.sortChatMessages();
   }
 
   onMessageDeleted(messageId: string): void {
     this.chatMessages = this.chatMessages.filter(
       msg => msg.timestamp.toString() !== messageId
     );
+    this.sortChatMessages();
+    this.cdr.markForCheck();
   }
 
   onModerationMenuToggled(messageId: string | null): void {
@@ -256,126 +365,13 @@ export class MainComponent implements OnInit, OnDestroy, AfterViewChecked {
     });
   }
 
-  twitchBannedWords: string[] = [];
-  newTwitchBannedWord: string = '';
-  isLoadingBannedWords: boolean = false;
-
-  async loadTwitchBannedWords(): Promise<void> {
-    try {
-      if (!this.channel) {
-        alert('Сначала подключитесь к каналу');
-        return;
-      }
-
-      this.isLoadingBannedWords = true;
-      
-      if (window.electronAPI && (window.electronAPI as any).getTwitchBannedWords) {
-        console.log('[BannedWords] Загрузка банвордов для канала:', this.channel);
-        this.twitchBannedWords = await (window.electronAPI as any).getTwitchBannedWords(this.channel);
-        console.log('[BannedWords] Загружено банвордов:', this.twitchBannedWords.length);
-        
-        if (this.twitchBannedWords.length === 0) {
-          console.log('[BannedWords] Список банвордов пуст');
-        }
-      } else {
-        // Fallback: загружаем из настроек
-        const settings = await this.settingsService.getSettings();
-        this.twitchBannedWords = (settings as any).twitchBannedWords || [];
-      }
-    } catch (error: any) {
-      console.error('[BannedWords] Ошибка загрузки:', error);
-      alert(`Ошибка загрузки банвордов: ${error.message || 'Неизвестная ошибка'}\n\nУбедитесь, что вы авторизованы через Twitch и являетесь модератором канала.`);
-    } finally {
-      this.isLoadingBannedWords = false;
-    }
-  }
-
-  onTwitchBannedWordsPanelToggle(): void {
-    if (this.showTwitchBannedWords && this.twitchBannedWords.length === 0 && !this.isLoadingBannedWords) {
-      // Автоматически загружаем при первом открытии
-      this.loadTwitchBannedWords();
-    }
-  }
-
-  async addTwitchBannedWord(): Promise<void> {
-    if (!this.newTwitchBannedWord.trim()) {
-      return;
-    }
-
-    if (!this.channel) {
-      alert('Сначала подключитесь к каналу');
-      return;
-    }
-
-    try {
-      const word = this.newTwitchBannedWord.trim();
-      
-      // Добавляем через API, если доступно
-      if (window.electronAPI && (window.electronAPI as any).addTwitchBannedWord) {
-        const result = await (window.electronAPI as any).addTwitchBannedWord(this.channel, word);
-        if (result.success) {
-          // Обновляем список
-          await this.loadTwitchBannedWords();
-          this.newTwitchBannedWord = '';
-        } else {
-          alert(`Ошибка добавления банворда: ${result.message || 'Неизвестная ошибка'}`);
-        }
-      } else {
-        // Fallback: добавляем локально
-        if (!this.twitchBannedWords.includes(word)) {
-          this.twitchBannedWords.push(word);
-          await this.saveTwitchBannedWords();
-          this.newTwitchBannedWord = '';
-        }
-      }
-    } catch (error: any) {
-      console.error('[BannedWords] Ошибка добавления:', error);
-      alert(`Ошибка добавления банворда: ${error.message || 'Неизвестная ошибка'}`);
-    }
-  }
-
-  async removeTwitchBannedWord(word: string): Promise<void> {
-    if (!this.channel) {
-      alert('Сначала подключитесь к каналу');
-      return;
-    }
-
-    try {
-      // Удаляем через API, если доступно
-      if (window.electronAPI && (window.electronAPI as any).removeTwitchBannedWord) {
-        const result = await (window.electronAPI as any).removeTwitchBannedWord(this.channel, word);
-        if (result.success) {
-          // Обновляем список
-          await this.loadTwitchBannedWords();
-        } else {
-          alert(`Ошибка удаления банворда: ${result.message || 'Неизвестная ошибка'}`);
-        }
-      } else {
-        // Fallback: удаляем локально
-        this.twitchBannedWords = this.twitchBannedWords.filter(w => w !== word);
-        await this.saveTwitchBannedWords();
-      }
-    } catch (error: any) {
-      console.error('[BannedWords] Ошибка удаления:', error);
-      alert(`Ошибка удаления банворда: ${error.message || 'Неизвестная ошибка'}`);
-    }
-  }
-
-  async saveTwitchBannedWords(): Promise<void> {
-    if (window.electronAPI && (window.electronAPI as any).saveTwitchBannedWords) {
-      await (window.electronAPI as any).saveTwitchBannedWords(this.channel, this.twitchBannedWords);
-    } else {
-      // Fallback: сохраняем в настройки
-      const settings = await this.settingsService.getSettings();
-      (settings as any).twitchBannedWords = this.twitchBannedWords;
-      await this.settingsService.saveSettings(settings);
-    }
-  }
 
   async clearChat(): Promise<void> {
     if (confirm('Вы уверены, что хотите очистить весь чат?')) {
       await this.moderationService.clearChat(this.channel);
       this.chatMessages = [];
+      this.sortedChatMessages = [];
+      this.cdr.markForCheck();
     }
   }
 
@@ -448,18 +444,26 @@ export class MainComponent implements OnInit, OnDestroy, AfterViewChecked {
       }
     }
 
-    // Добавляем сообщение в чат (в конец массива для правильной сортировки)
+    // Добавляем сообщение в чат
     this.chatMessages.push(message);
     this.shouldScroll = true;
     
-    // Ограничиваем количество сообщений (удаляем старые сообщения с начала)
+    // Ограничиваем количество сообщений (удаляем старые сообщения)
     const maxMessages = this.settings.maxChatMessages || 100;
     if (this.chatMessages.length > maxMessages) {
-      this.chatMessages.shift(); // Удаляем самое старое сообщение
+      // Удаляем самое старое сообщение (первое в отсортированном списке по времени)
+      const sortedByTime = this.chatMessages.slice().sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+      const oldestMessage = sortedByTime[0];
+      const oldestIndex = this.chatMessages.findIndex(msg => 
+        msg.timestamp.getTime() === oldestMessage.timestamp.getTime() && msg.username === oldestMessage.username
+      );
+      if (oldestIndex !== -1) {
+        this.chatMessages.splice(oldestIndex, 1);
+      }
     }
     
-    // Обновляем список сообщений (для автоматического обновления)
-    this.chatMessages = [...this.chatMessages];
+    // Обновляем отсортированный список
+    this.sortChatMessages();
 
     // Проверяем, нужно ли озвучивать сообщение
     if (this.shouldVoiceMessage(message)) {
@@ -588,6 +592,11 @@ export class MainComponent implements OnInit, OnDestroy, AfterViewChecked {
       await this.disconnect();
       await this.connect();
     }
+  }
+
+  onThemeChange(theme: Theme): void {
+    this.themeService.setTheme(theme);
+    this.currentTheme = theme;
   }
 }
 
